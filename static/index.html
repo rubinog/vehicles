@@ -104,6 +104,13 @@ label{display:block;font-size:.85rem;color:var(--mute);margin-bottom:12px}
 input,select{display:block;width:100%;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
 .act{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
 .backup-box{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+.about-footer{text-align:center;margin:36px 0 20px;display:flex;flex-direction:column;gap:10px}
+.about-version{font-size:.9rem;color:var(--mute)}
+.about-version b{display:block;font-size:.85rem;font-family:monospace;font-weight:500;margin-top:2px}
+.about-title{font-size:.85rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.about-motto{font-size:1.05rem;font-weight:700;font-style:italic;margin:0;letter-spacing:-.01em}
+.about-legal{font-size:.78rem;color:var(--mute);line-height:1.5;margin-top:4px}
+.about-legal a{color:inherit;text-decoration:underline}
 @media(max-width:560px){.row{grid-template-columns:70px 1fr}.acts{grid-column:1/-1;justify-content:flex-start}}
 @media(prefers-reduced-motion:no-preference){dialog[open]{animation:p .15s ease-out}@keyframes p{from{transform:scale(.97);opacity:0}}}
 </style>
@@ -134,10 +141,14 @@ const REC={Tagliando:'Meccanico',Gomme:'Gommista',Altro:'Altro'};
 const PK=['Meccanico','Carrozziere','Gommista','Assicurazione','Altro'];
 const kindOf=t=>PK.includes(t)?t:REC[t]||'Altro';
 const SW=['#ec6a3c','#2f4bff','#0f9d8a','#c2255c','#7048e8','#2b8a3e','#f08c00'];
-let S={v:[],d:[],r:[],a:[],p:[],set:{},page:'',cur:null};
+let S={v:[],d:[],r:[],a:[],p:[],set:{},version:'...',page:'',cur:null};
 
 async function load(){
-  [S.v,S.d,S.r,S.a,S.p,S.set]=await Promise.all(['vehicles','deadlines','records','attachments','places','settings'].map(t=>api('GET',t)));applyAccent(S.set.accent);
+  [S.v,S.d,S.r,S.a,S.p,S.set,S.version]=await Promise.all([
+    ...['vehicles','deadlines','records','attachments','places','settings'].map(t=>api('GET',t)),
+    api('GET','version').then(r=>r.version).catch(()=>'dev')
+  ]);
+  applyAccent(S.set.accent);
   if(!S.v.find(x=>x.id==S.cur))S.cur=S.v[0]?.id;
   render();
 }
@@ -206,7 +217,8 @@ const MONTHS='GFMAMGLASOND',eur0=v=>Math.round(v).toLocaleString('it-IT')+' €'
 const go=p=>{S.page=p;render();scrollTo(0,0)};
 const IC={home:'<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',dead:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',hist:'<path d="M4 6h16M4 12h16M4 18h10"/>',set:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'};
 function nav(){$('#nav').innerHTML=[['home','Panoramica'],['dead','Scadenze'],['hist','Storico'],['set','Impostazioni']].map(([k,l])=>`<button class="${(S.page||'home')==k?'on':''}" onclick="go('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${IC[k]}</svg><span>${l}</span></button>`).join('')}
-function settings(A){const c=S.set.accent||SW[0],n=id=>S.r.filter(r=>r.place_id==id).length+S.d.filter(r=>r.place_id==id).length;
+function settings(A){
+  const c=S.set.accent||SW[0],n=id=>S.r.filter(r=>r.place_id==id).length+S.d.filter(r=>r.place_id==id).length;
   A.innerHTML=`<div class="card"><div class="sec"><h2>Colore d’accento</h2></div>
   <div class="sw">${SW.map(x=>`<button style="background:${x}" class="${x==c?'on':''}" title="${x}" onclick="setAccent('${x}')"></button>`).join('')}<input type="color" value="${c}" title="Colore personalizzato" onchange="setAccent(this.value)"></div></div>
   <div class="card"><div class="sec"><h2>Dati e Backup</h2></div>
@@ -217,7 +229,18 @@ function settings(A){const c=S.set.accent||SW[0],n=id=>S.r.filter(r=>r.place_id=
   </div></div>
   <div class="card"><div class="sec"><h2>Officine e compagnie</h2><button onclick="pForm()">Aggiungi</button></div>
   <p class="m" style="margin:0 0 12px">Si aggiungono anche da sole quando le scrivi in un intervento o in una scadenza.</p>
-  ${S.p.length?[...S.p].sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<div class="row rec"><div class="m">${esc(p.kind)}</div><div><div class="t">${esc(p.name)}</div><div class="m">${[n(p.id)+(n(p.id)==1?' voce':' voci'),p.notes].filter(Boolean).map(esc).join(' · ')}</div></div><div class="acts"><button class="g" onclick="pForm(find('p',${p.id}))">Modifica</button><button class="g" onclick="del('places',${p.id},'Eliminare? Gli interventi restano, ma senza il luogo.')">×</button></div></div>`).join(''):'<div class="empty">Nessun luogo salvato.</div>'}</div>`}
+  ${S.p.length?[...S.p].sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<div class="row rec"><div class="m">${esc(p.kind)}</div><div><div class="t">${esc(p.name)}</div><div class="m">${[n(p.id)+(n(p.id)==1?' voce':' voci'),p.notes].filter(Boolean).map(esc).join(' · ')}</div></div><div class="acts"><button class="g" onclick="pForm(find('p',${p.id}))">Modifica</button><button class="g" onclick="del('places',${p.id},'Eliminare? Gli interventi restano, ma senza il luogo.')">×</button></div></div>`).join(''):'<div class="empty">Nessun luogo salvato.</div>'}</div>
+  
+  <div class="about-footer">
+    <div class="about-version">Versione app.<b>${esc(S.version)}</b></div>
+    <div class="about-title">VEHICLES</div>
+    <p class="about-motto">All your vehicles. All in one place.</p>
+    <div class="about-legal">
+      Free and open source software, licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>.<br>
+      Made by <a href="https://github.com/rubinog" target="_blank" rel="noopener">rubinog on GitHub</a>.
+    </div>
+  </div>`;
+}
 const dRow=x=>{const n=days(x.due_date),c=n<0?'late':n<=30?'soon':'';return `<div class="row ${c}"><div class="n">${Math.abs(n)}<small>${n<0?'giorni di ritardo':n==0?'oggi':n==1?'giorno':'giorni'}</small></div><div><div class="t">${esc(x.type)}</div><div class="m">${[it(x.due_date),pName(x.place_id),x.notes].filter(Boolean).map(esc).join(' · ')}</div>${att('deadlines',x.id)}</div><div class="acts"><button onclick="renew(find('d',${x.id}))">Rinnova</button><button class="g" onclick="dForm(find('d',${x.id}))">Modifica</button><button class="g" onclick="del('deadlines',${x.id},'Eliminare la scadenza?')">×</button></div></div>`};
 const rRow=x=>`<div class="row"><div class="m">${it(x.date)}</div><div><div class="t">${esc(x.type)}${x.description?' · '+esc(x.description):''}</div><div class="m">${[pName(x.place_id),x.cost&&eur(x.cost),x.km&&(+x.km).toLocaleString('it-IT')+' km'].filter(Boolean).map(esc).join(' · ')}</div>${att('records',x.id)}</div><div class="acts"><button class="g" onclick="rForm(find('r',${x.id}))">Modifica</button><button class="g" onclick="del('records',${x.id},'Eliminare questo intervento?')">×</button></div></div>`;
 function render(){

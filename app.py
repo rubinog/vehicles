@@ -1,4 +1,4 @@
-import os, sqlite3, uuid, io, zipfile, shutil
+import os, sqlite3, uuid, io, zipfile, subprocess
 from datetime import datetime
 from flask import Flask, jsonify, request, send_from_directory, send_file
 from werkzeug.utils import secure_filename
@@ -14,6 +14,24 @@ T = {
     "records": ["vehicle_id", "date", "type", "description", "cost", "km", "place_id"],
     "places": ["name", "kind", "notes"],
 }
+
+def get_git_version():
+    try:
+        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        try:
+            head_path = os.path.join(os.path.dirname(__file__), ".git", "HEAD")
+            with open(head_path, "r") as f:
+                ref = f.read().strip()
+            if ref.startswith("ref:"):
+                ref_path = os.path.join(os.path.dirname(__file__), ".git", ref.split(" ")[1])
+                with open(ref_path, "r") as f:
+                    return f.read().strip()[:7]
+            return ref[:7]
+        except Exception:
+            return "dev"
+
+APP_VERSION = get_git_version()
 
 def db():
     c = sqlite3.connect(DB)
@@ -50,10 +68,13 @@ def manifest():
 def service_worker():
     return send_from_directory("static", "sw.js", mimetype="application/javascript")
 
+@app.get("/api/version")
+def version():
+    return jsonify(version=APP_VERSION)
+
 # --- Backup & Restore ---
 @app.get("/api/backup")
 def get_backup():
-    # Vacuum del DB per assicurare che il file su disco sia pulito prima della compressione
     with db() as c:
         c.execute("PRAGMA wal_checkpoint(FULL)")
     
@@ -79,11 +100,8 @@ def restore_backup():
     try:
         data_dir = os.path.dirname(DB)
         with zipfile.ZipFile(f.stream, "r") as zf:
-            # Verifica preliminare che contenga il DB
             if "vehicles.db" not in zf.namelist():
                 return jsonify(error="Backup non valido: vehicles.db mancante"), 400
-            
-            # Estrazione e sovrascrittura di DB e cartella files/
             zf.extractall(data_dir)
         return jsonify(ok=1)
     except Exception as e:
