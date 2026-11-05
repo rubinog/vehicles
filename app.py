@@ -9,7 +9,7 @@ app = Flask(__name__, static_folder="static")
 app.config["MAX_CONTENT_LENGTH"] = 30 * 1024 * 1024
 T = {
     "vehicles": ["name", "plate", "notes", "purchase_date", "sale_date"],
-    "deadlines": ["vehicle_id", "type", "due_date", "repeat_months", "notes"],
+    "deadlines": ["vehicle_id", "type", "due_date", "repeat_months", "notes", "place_id"],
     "records": ["vehicle_id", "date", "type", "description", "cost", "km", "place_id"],
     "places": ["name", "kind", "notes"],
 }
@@ -118,6 +118,7 @@ def rm(t, i):
             c.execute("delete from records where vehicle_id=?", (i,))
         elif t == "places":
             c.execute("update records set place_id=null where place_id=?", (i,))
+            c.execute("update deadlines set place_id=null where place_id=?", (i,))
         else:
             drop_files(c, "kind=? and ref_id=?", (t, i))
         c.execute(f"delete from {t} where id=?", (i,))
