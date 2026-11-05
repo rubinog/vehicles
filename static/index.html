@@ -42,6 +42,9 @@ header{display:flex;justify-content:space-between;align-items:flex-start;gap:12p
 .sw button.on{border-color:var(--bg);box-shadow:0 0 0 2px var(--ink)}
 .sw input{width:44px;height:34px;padding:0;margin:0;border:0;background:none}
 .sum{color:var(--mute);font-size:.9rem;margin:-2px 0 8px}
+.vname{font-size:1.6rem}
+.vname.sold{text-decoration:line-through;text-decoration-color:var(--accent);text-decoration-thickness:3px}
+.sale{color:var(--accent)}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(420px,92vw);padding:22px}
 dialog::backdrop{background:rgba(0,0,0,.45)}
 dialog h3{margin:0 0 14px}
@@ -136,8 +139,8 @@ function render(){
   const Y=new Date().getFullYear(),RY=R.filter(x=>x.date.startsWith(Y)),by={};RY.forEach(x=>by[x.type]=(by[x.type]||0)+(+x.cost||0));
   const ysum=RY.length?`<p class="sum"><b>${Y}</b>: ${eur(RY.reduce((s,x)=>s+(+x.cost||0),0))} in ${RY.length} ${RY.length==1?'intervento':'interventi'}${' — '+Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>esc(k)+' '+eur(v)).join(' · ')}</p>`:'';
   A.innerHTML=`<div class="chips">${S.v.map(x=>`<button class="chip ${x.id==S.cur?'on':''} ${x.sale_date?'sold':''}" onclick="S.cur=${x.id};render()">${esc(x.name)}</button>`).join('')}<button class="g" onclick="vForm()">+ Veicolo</button></div>
-  <div class="head"><h2 style="font-size:1.6rem">${esc(v.name)}</h2><div><button class="g" onclick="vForm(find('v',${v.id}))">Modifica</button><button class="g" onclick="del('vehicles',${v.id},'Eliminare il veicolo con scadenze e storico?')">Elimina</button></div></div>
-  <p class="plate">${[v.plate,v.notes,v.purchase_date&&'Acquistato il '+it(v.purchase_date),v.sale_date&&'Venduto il '+it(v.sale_date)].filter(Boolean).map(esc).join(' · ')}</p>
+  <div class="head"><h2 class="vname ${v.sale_date?'sold':''}">${esc(v.name)}</h2><div><button class="g" onclick="vForm(find('v',${v.id}))">Modifica</button><button class="g" onclick="del('vehicles',${v.id},'Eliminare il veicolo con scadenze e storico?')">Elimina</button></div></div>
+  <p class="plate">${[v.plate,v.notes,v.purchase_date&&'Acquistato il '+it(v.purchase_date)].filter(Boolean).map(esc).concat(v.sale_date?[`<b class="sale">Venduto il ${it(v.sale_date)}</b>`]:[]).join(' · ')}</p>
   <div class="sec"><h2>Scadenze</h2><button onclick="dForm()">Aggiungi scadenza</button></div>
   ${D.length?D.map(x=>{const n=days(x.due_date),c=n<0?'late':n<=30?'soon':'';
     return `<div class="row ${c}"><div class="n">${n<0?-n:n}<small>${n<0?'giorni di ritardo':n==0?'oggi':n==1?'giorno':'giorni'}</small></div>
