@@ -7,6 +7,8 @@ App web self-hosted per tenere sotto controllo assicurazione, bollo, manutenzion
 - Più veicoli, ognuno con nome, targa e note
 - Scadenze (assicurazione, bollo, revisione, tagliando, gomme…) con giorni rimanenti e ripetizione automatica
 - «Rinnova» registra il pagamento nello storico e sposta la scadenza avanti
+- Allegati facoltativi (PDF o foto) su interventi e scadenze, es. fatture del meccanico
+- Data di acquisto e di vendita del veicolo
 - Storico interventi con data, costo e km, e totale speso
 - Tema chiaro/scuro automatico
 
@@ -16,7 +18,7 @@ App web self-hosted per tenere sotto controllo assicurazione, bollo, manutenzion
 docker compose up -d --build
 ```
 
-L'app risponde su http://localhost:38189. I dati (SQLite) restano in `./data`.
+L'app risponde su http://localhost:38189. Database (SQLite) e allegati restano in `./data` (`vehicles.db` e `files/`): per il backup basta copiare quella cartella.
 
 ## Stack
 

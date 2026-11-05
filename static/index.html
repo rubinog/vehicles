@@ -32,6 +32,10 @@ button.g:hover{color:var(--ink)}
 .t{font-weight:600}.m{color:var(--mute);font-size:.9rem}
 .acts{display:flex;gap:2px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .empty{color:var(--mute);padding:18px 0;border-top:1px solid var(--line)}
+.chip.sold:not(.on){opacity:.6}
+.file{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:6px;margin:6px 6px 0 0;max-width:100%}
+.file a{color:var(--accent);text-decoration:none;padding:2px 8px;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.file button{padding:2px 8px}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(420px,92vw);padding:22px}
 dialog::backdrop{background:rgba(0,0,0,.45)}
 dialog h3{margin:0 0 14px}
@@ -61,34 +65,36 @@ const DT=['Assicurazione','Bollo','Revisione','Tagliando','Gomme','Altro'];
 const RT=['Meccanico','Carrozziere','Gommista','Revisione','Assicurazione','Bollo','Altro'];
 const REP={Assicurazione:12,Bollo:12,Revisione:24,Tagliando:12,Gomme:6,Altro:''};
 const REC={Tagliando:'Meccanico',Gomme:'Gommista',Altro:'Altro'};
-let S={v:[],d:[],r:[],cur:null};
+let S={v:[],d:[],r:[],a:[],cur:null};
 
 async function load(){
-  [S.v,S.d,S.r]=await Promise.all(['vehicles','deadlines','records'].map(t=>api('GET',t)));
+  [S.v,S.d,S.r,S.a]=await Promise.all(['vehicles','deadlines','records','attachments'].map(t=>api('GET',t)));
   if(!S.v.find(x=>x.id==S.cur))S.cur=S.v[0]?.id;
   render();
 }
 function form(title,fields,vals,ok,after){
   const d=$('#dlg');
-  d.innerHTML=`<form method="dialog"><h3>${title}</h3>${fields.map(f=>`<label>${f.l}${f.o?`<select name="${f.n}">${f.o.map(o=>`<option ${vals[f.n]==o?'selected':''}>${o}</option>`).join('')}</select>`:`<input name="${f.n}" type="${f.t||'text'}" value="${esc(vals[f.n])}" ${f.r?'required':''} ${f.t=='number'?'step="any" min="0"':''}>`}</label>`).join('')}<div class="act"><button value="x" class="g" formnovalidate>Annulla</button><button value="ok">Salva</button></div></form>`;
+  d.innerHTML=`<form method="dialog"><h3>${title}</h3>${fields.map(f=>`<label>${f.l}${f.o?`<select name="${f.n}">${f.o.map(o=>`<option ${vals[f.n]==o?'selected':''}>${o}</option>`).join('')}</select>`:`<input name="${f.n}" type="${f.t||'text'}" value="${esc(vals[f.n])}" ${f.r?'required':''} ${f.t=='number'?'step="any" min="0"':''} ${f.t=='file'?'multiple accept=".pdf,image/jpeg,image/png,image/webp"':''}>`}</label>`).join('')}<div class="act"><button value="x" class="g" formnovalidate>Annulla</button><button value="ok">Salva</button></div></form>`;
   const f=d.querySelector('form');
-  f.onsubmit=e=>{if(e.submitter.value==='ok')ok(Object.fromEntries(new FormData(f)))};
+  f.onsubmit=e=>{if(e.submitter.value==='ok'){const fl=[...(f.elements.files?.files||[])].filter(x=>x.size),o=Object.fromEntries(new FormData(f));delete o.files;ok(o,fl)}};
   after&&after(f);
   d.showModal();
 }
-const vForm=(v={})=>form(v.id?'Modifica veicolo':'Nuovo veicolo',[{n:'name',l:'Nome (es. Panda)',r:1},{n:'plate',l:'Targa'},{n:'notes',l:'Note'}],v,async o=>{
+const vForm=(v={})=>form(v.id?'Modifica veicolo':'Nuovo veicolo',[{n:'name',l:'Nome (es. Panda)',r:1},{n:'plate',l:'Targa'},{n:'purchase_date',l:'Data di acquisto',t:'date'},{n:'sale_date',l:'Data di vendita (se venduto)',t:'date'},{n:'notes',l:'Note'}],v,async o=>{
   if(v.id)await api('PUT','vehicles/'+v.id,o);else S.cur=(await api('POST','vehicles',o)).id;load()});
-const dForm=(x={})=>form(x.id?'Modifica scadenza':'Nuova scadenza',[{n:'type',l:'Tipo',o:DT},{n:'due_date',l:'Scade il',t:'date',r:1},{n:'repeat_months',l:'Si ripete ogni (mesi, vuoto = una tantum)',t:'number'},{n:'notes',l:'Note'}],
-  x.id?x:{repeat_months:12,due_date:today()},async o=>{o.vehicle_id=S.cur;
-  if(x.id)await api('PUT','deadlines/'+x.id,o);else await api('POST','deadlines',o);load()},
+const dForm=(x={})=>form(x.id?'Modifica scadenza':'Nuova scadenza',[{n:'type',l:'Tipo',o:DT},{n:'due_date',l:'Scade il',t:'date',r:1},{n:'repeat_months',l:'Si ripete ogni (mesi, vuoto = una tantum)',t:'number'},{n:'notes',l:'Note'},{n:'files',l:'Allega PDF o foto (facoltativo)',t:'file'}],
+  x.id?x:{repeat_months:12,due_date:today()},async (o,fl)=>{o.vehicle_id=S.cur;let id=x.id;
+  if(id)await api('PUT','deadlines/'+id,o);else id=(await api('POST','deadlines',o)).id;await up('deadlines',id,fl);load()},
   f=>f.type.onchange=()=>f.repeat_months.value=REP[f.type.value]);
-const rForm=(x={})=>form(x.id?'Modifica intervento':'Nuovo intervento',[{n:'date',l:'Data',t:'date',r:1},{n:'type',l:'Tipo',o:RT},{n:'description',l:'Cosa è stato fatto'},{n:'cost',l:'Costo (€)',t:'number'},{n:'km',l:'Km',t:'number'}],
-  x.id?x:{date:today()},async o=>{o.vehicle_id=S.cur;
-  if(x.id)await api('PUT','records/'+x.id,o);else await api('POST','records',o);load()});
-const renew=x=>form('Rinnovo: '+x.type,[{n:'date',l:'Data pagamento / intervento',t:'date',r:1},{n:'cost',l:'Costo (€)',t:'number'},{n:'description',l:'Note'}],{date:today()},async o=>{
-  await api('POST','records',{vehicle_id:x.vehicle_id,type:REC[x.type]||x.type,description:o.description||x.type,cost:o.cost,date:o.date});
+const rForm=(x={})=>form(x.id?'Modifica intervento':'Nuovo intervento',[{n:'date',l:'Data',t:'date',r:1},{n:'type',l:'Tipo',o:RT},{n:'description',l:'Cosa è stato fatto'},{n:'cost',l:'Costo (€)',t:'number'},{n:'km',l:'Km',t:'number'},{n:'files',l:'Allega fattura (PDF o foto, facoltativo)',t:'file'}],
+  x.id?x:{date:today()},async (o,fl)=>{o.vehicle_id=S.cur;let id=x.id;
+  if(id)await api('PUT','records/'+id,o);else id=(await api('POST','records',o)).id;await up('records',id,fl);load()});
+const renew=x=>form('Rinnovo: '+x.type,[{n:'date',l:'Data pagamento / intervento',t:'date',r:1},{n:'cost',l:'Costo (€)',t:'number'},{n:'description',l:'Note'},{n:'files',l:'Allega fattura (PDF o foto, facoltativo)',t:'file'}],{date:today()},async (o,fl)=>{
+  const r=await api('POST','records',{vehicle_id:x.vehicle_id,type:REC[x.type]||x.type,description:o.description||x.type,cost:o.cost,date:o.date});await up('records',r.id,fl);
   if(x.repeat_months)await api('PUT','deadlines/'+x.id,{due_date:addM(x.due_date,x.repeat_months)});else await api('DELETE','deadlines/'+x.id);
   load()});
+async function up(kind,ref,files){for(const f of files){const fd=new FormData();fd.append('kind',kind);fd.append('ref_id',ref);fd.append('file',f);const r=await fetch('/api/attachments',{method:'POST',body:fd});if(!r.ok)alert('Impossibile allegare '+f.name)}}
+const att=(k,id)=>S.a.filter(a=>a.kind==k&&a.ref_id==id).map(a=>`<span class="file"><a href="/files/${a.id}" target="_blank" rel="noopener" title="${esc(a.name)}">${esc(a.name)}</a><button class="g" title="Rimuovi allegato" onclick="del('attachments',${a.id},'Rimuovere l allegato?')">×</button></span>`).join('');
 const del=(t,i,msg)=>confirm(msg)&&api('DELETE',t+'/'+i).then(load);
 const find=(a,i)=>S[a].find(x=>x.id==i);
 
@@ -99,17 +105,17 @@ function render(){
   const D=S.d.filter(x=>x.vehicle_id==S.cur).sort((a,b)=>a.due_date.localeCompare(b.due_date));
   const R=S.r.filter(x=>x.vehicle_id==S.cur).sort((a,b)=>b.date.localeCompare(a.date));
   const tot=R.reduce((s,x)=>s+(+x.cost||0),0);
-  A.innerHTML=`<div class="chips">${S.v.map(x=>`<button class="chip ${x.id==S.cur?'on':''}" onclick="S.cur=${x.id};render()">${esc(x.name)}</button>`).join('')}<button class="g" onclick="vForm()">+ Veicolo</button></div>
+  A.innerHTML=`<div class="chips">${S.v.map(x=>`<button class="chip ${x.id==S.cur?'on':''} ${x.sale_date?'sold':''}" onclick="S.cur=${x.id};render()">${esc(x.name)}</button>`).join('')}<button class="g" onclick="vForm()">+ Veicolo</button></div>
   <div class="head"><h2 style="font-size:1.6rem">${esc(v.name)}</h2><div><button class="g" onclick="vForm(find('v',${v.id}))">Modifica</button><button class="g" onclick="del('vehicles',${v.id},'Eliminare il veicolo con scadenze e storico?')">Elimina</button></div></div>
-  <p class="plate">${esc(v.plate)}${v.plate&&v.notes?' · ':''}${esc(v.notes)}</p>
+  <p class="plate">${[v.plate,v.notes,v.purchase_date&&'Acquistato il '+it(v.purchase_date),v.sale_date&&'Venduto il '+it(v.sale_date)].filter(Boolean).map(esc).join(' · ')}</p>
   <div class="sec"><h2>Scadenze</h2><button onclick="dForm()">Aggiungi scadenza</button></div>
   ${D.length?D.map(x=>{const n=days(x.due_date),c=n<0?'late':n<=30?'soon':'';
     return `<div class="row ${c}"><div class="n">${n<0?-n:n}<small>${n<0?'giorni di ritardo':n==0?'oggi':n==1?'giorno':'giorni'}</small></div>
-    <div><div class="t">${esc(x.type)}</div><div class="m">${it(x.due_date)}${x.notes?' · '+esc(x.notes):''}</div></div>
+    <div><div class="t">${esc(x.type)}</div><div class="m">${it(x.due_date)}${x.notes?' · '+esc(x.notes):''}</div>${att('deadlines',x.id)}</div>
     <div class="acts"><button onclick="renew(find('d',${x.id}))">Rinnova</button><button class="g" onclick="dForm(find('d',${x.id}))">Modifica</button><button class="g" onclick="del('deadlines',${x.id},'Eliminare la scadenza?')">×</button></div></div>`}).join(''):'<div class="empty">Nessuna scadenza. Aggiungi bollo, assicurazione, tagliando…</div>'}
   <div class="sec"><h2>Storico${tot?` <span class="m" style="font-weight:400">· totale ${tot.toLocaleString('it-IT',{style:'currency',currency:'EUR'})}</span>`:''}</h2><button onclick="rForm()">Aggiungi intervento</button></div>
   ${R.length?R.map(x=>`<div class="row rec"><div class="m">${it(x.date)}</div>
-    <div><div class="t">${esc(x.type)}${x.description?' · '+esc(x.description):''}</div><div class="m">${x.cost?(+x.cost).toLocaleString('it-IT',{style:'currency',currency:'EUR'}):''}${x.cost&&x.km?' · ':''}${x.km?(+x.km).toLocaleString('it-IT')+' km':''}</div></div>
+    <div><div class="t">${esc(x.type)}${x.description?' · '+esc(x.description):''}</div><div class="m">${x.cost?(+x.cost).toLocaleString('it-IT',{style:'currency',currency:'EUR'}):''}${x.cost&&x.km?' · ':''}${x.km?(+x.km).toLocaleString('it-IT')+' km':''}</div>${att('records',x.id)}</div>
     <div class="acts"><button class="g" onclick="rForm(find('r',${x.id}))">Modifica</button><button class="g" onclick="del('records',${x.id},'Eliminare l\\'intervento?')">×</button></div></div>`).join(''):'<div class="empty">Nessun intervento registrato.</div>'}`;
 }
 load();
