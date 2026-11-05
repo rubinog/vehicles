@@ -82,6 +82,11 @@ nav button{background:none;color:var(--mute);display:flex;flex-direction:column;
 nav button.on{color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
 nav svg{width:22px;height:22px}
 dialog{border:0;border-radius:24px;background:var(--card);color:var(--ink);width:min(420px,92vw);padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+#cfm{width:min(360px,92vw)}
+#cfm h3{font-size:1.05rem;line-height:1.4;margin:0 0 18px}
+.danger{background:#d6332f;color:#fff}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;z-index:9;font-size:.9rem;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.toast[hidden]{display:none}
 dialog::backdrop{background:rgba(0,0,0,.45)}
 dialog h3{margin:0 0 14px}
 label{display:block;font-size:.85rem;color:var(--mute);margin-bottom:12px}
@@ -98,6 +103,8 @@ input,select{display:block;width:100%;margin-top:4px;padding:10px 12px;border:1p
 </main>
 <nav id="nav"></nav>
 <dialog id="dlg"></dialog>
+<dialog id="cfm"></dialog>
+<div id="toast" class="toast" hidden></div>
 <script>
 const $=s=>document.querySelector(s),p=n=>String(n).padStart(2,'0');
 const api=(m,u,b)=>fetch('/api/'+u,{method:m,headers:{'Content-Type':'application/json'},body:b&&JSON.stringify(b)}).then(r=>r.json());
@@ -155,9 +162,11 @@ function applyAccent(c){if(!c)return;try{localStorage.setItem('accent',c)}catch(
 try{applyAccent(localStorage.getItem('accent'))}catch(e){}
 const setAccent=async c=>{S.set.accent=c;applyAccent(c);await api('PUT','settings',{accent:c});render()};
 const pForm=(x={})=>form(x.id?'Modifica luogo':'Nuovo luogo',[{n:'name',l:'Nome',r:1},{n:'kind',l:'Tipo',o:PK},{n:'notes',l:'Città, telefono, note'}],x.id?x:{kind:'Meccanico'},async o=>{if(x.id)await api('PUT','places/'+x.id,o);else await api('POST','places',o);load()});
-async function up(kind,ref,files){for(const f of files){const fd=new FormData();fd.append('kind',kind);fd.append('ref_id',ref);fd.append('file',f);const r=await fetch('/api/attachments',{method:'POST',body:fd});if(!r.ok)alert('Impossibile allegare '+f.name)}}
+async function up(kind,ref,files){for(const f of files){const fd=new FormData();fd.append('kind',kind);fd.append('ref_id',ref);fd.append('file',f);const r=await fetch('/api/attachments',{method:'POST',body:fd});if(!r.ok)toast('Impossibile allegare '+f.name)}}
 const att=(k,id)=>S.a.filter(a=>a.kind==k&&a.ref_id==id).map(a=>`<span class="file"><a href="/files/${a.id}" target="_blank" rel="noopener" title="${esc(a.name)}">${esc(a.name)}</a><button class="g" title="Rimuovi allegato" onclick="del('attachments',${a.id},'Rimuovere l allegato?')">×</button></span>`).join('');
-const del=(t,i,msg)=>confirm(msg)&&api('DELETE',t+'/'+i).then(load);
+function ask(msg,ok='Elimina'){return new Promise(r=>{const d=$('#cfm');d.returnValue='';d.innerHTML=`<form method="dialog"><h3>${esc(msg)}</h3><div class="act"><button value="x" class="g">Annulla</button><button value="ok" class="danger">${ok}</button></div></form>`;d.onclose=()=>r(d.returnValue==='ok');d.showModal()})}
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2500)}
+const del=async(t,i,msg)=>{if(await ask(msg)){await api('DELETE',t+'/'+i);await load();toast('Eliminato')}};
 const find=(a,i)=>S[a].find(x=>x.id==i);
 
 const MONTHS='GFMAMGLASOND',eur0=v=>Math.round(v).toLocaleString('it-IT')+' €';
