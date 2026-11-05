@@ -77,6 +77,8 @@ button.g:hover{color:var(--ink)}
 .sw button{width:36px;height:36px;border-radius:50%;padding:0;border:2px solid transparent;box-shadow:0 0 0 1px var(--line)}
 .sw button.on{border-color:var(--card);box-shadow:0 0 0 2px var(--ink)}
 .sw input{width:44px;height:36px;padding:0;margin:0;border:0;background:none}
+.hint{display:block;margin-top:5px;font-size:.78rem;color:var(--mute)}
+.hint.new{color:var(--accent);font-weight:600}
 nav{position:fixed;left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom));display:flex;gap:2px;background:var(--card);border-radius:28px;padding:6px;box-shadow:0 10px 36px rgba(40,25,10,.2);z-index:5;max-width:calc(100vw - 24px)}
 nav button{background:none;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 14px;border-radius:22px;font-size:.72rem}
 nav button.on{color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
@@ -141,18 +143,24 @@ const vForm=(v={})=>form(v.id?'Modifica veicolo':'Nuovo veicolo',[{n:'name',l:'N
 const dForm=(x={})=>form(x.id?'Modifica scadenza':'Nuova scadenza',[{n:'type',l:'Tipo',o:DT},{n:'due_date',l:'Scade il',t:'date',r:1},{n:'repeat_months',l:'Si ripete ogni (mesi, vuoto = una tantum)',t:'number'},{n:'notes',l:'Note'},{n:'place',l:'Compagnia o officina (facoltativo)',dl:placeDL()},{n:'files',l:'Allega PDF o foto (facoltativo)',t:'file'}],
   x.id?{...x,place:pName(x.place_id)}:{repeat_months:12,due_date:today()},async (o,fl)=>{o.vehicle_id=S.cur;o.place_id=await placeId(o.place,o.type);delete o.place;let id=x.id;
   if(id)await api('PUT','deadlines/'+id,o);else id=(await api('POST','deadlines',o)).id;await up('deadlines',id,fl);load()},
-  f=>f.type.onchange=()=>f.repeat_months.value=REP[f.type.value]);
+  f=>{f.type.onchange=()=>f.repeat_months.value=REP[f.type.value];wirePlace(f,()=>f.type.value)});
 const rForm=(x={})=>form(x.id?'Modifica intervento':'Nuovo intervento',[{n:'date',l:'Data',t:'date',r:1},{n:'type',l:'Tipo',o:RT},{n:'description',l:'Cosa è stato fatto'},{n:'place',l:'Dove / compagnia (officina, carrozzeria, assicurazione…): scegli dall’elenco o scrivi un nome nuovo',dl:placeDL()},{n:'cost',l:'Costo (€)',t:'number'},{n:'km',l:'Km',t:'number'},{n:'files',l:'Allega fattura (PDF o foto, facoltativo)',t:'file'}],
   x.id?{...x,place:pName(x.place_id)}:{date:today()},async (o,fl)=>{o.vehicle_id=S.cur;o.place_id=await placeId(o.place,o.type);delete o.place;let id=x.id;
-  if(id)await api('PUT','records/'+id,o);else id=(await api('POST','records',o)).id;await up('records',id,fl);load()});
+  if(id)await api('PUT','records/'+id,o);else id=(await api('POST','records',o)).id;await up('records',id,fl);load()},f=>wirePlace(f,()=>f.type.value));
 const renew=x=>form('Rinnovo: '+x.type,[{n:'date',l:'Data pagamento / intervento',t:'date',r:1},{n:'cost',l:'Costo (€)',t:'number'},{n:'description',l:'Note'},{n:'place',l:'Dove (facoltativo)',dl:placeDL()},{n:'files',l:'Allega fattura (PDF o foto, facoltativo)',t:'file'}],{date:today(),place:pName(x.place_id)},async (o,fl)=>{
   const pid=await placeId(o.place,x.type);
   const r=await api('POST','records',{vehicle_id:x.vehicle_id,type:REC[x.type]||x.type,description:o.description||x.type,cost:o.cost,date:o.date,place_id:pid});await up('records',r.id,fl);
   if(x.repeat_months)await api('PUT','deadlines/'+x.id,{due_date:addM(x.due_date,x.repeat_months),place_id:pid});else await api('DELETE','deadlines/'+x.id);
-  load()});
+  load()},f=>wirePlace(f,()=>x.type));
 const eur=v=>(+v).toLocaleString('it-IT',{style:'currency',currency:'EUR'});
 const pName=id=>S.p.find(p=>p.id==id)?.name||'';
 const placeDL=()=>[...S.p].sort((a,b)=>a.name.localeCompare(b.name)).map(p=>[p.name,p.kind]);
+function wirePlace(f,getType){const i=f.elements.place;if(!i)return;const dl=f.querySelector('datalist'),h=document.createElement('small');h.className='hint';i.parentNode.append(h);
+  const upd=()=>{const k=kindOf(getType()),ins=k=='Assicurazione',L=placeDL().filter(o=>(o[1]=='Assicurazione')==ins).sort((a,b)=>(b[1]==k)-(a[1]==k));
+    dl.innerHTML=L.map(o=>`<option value="${esc(o[0])}" label="${esc(o[1])}">`).join('');hint()};
+  const hint=()=>{const v=i.value.trim(),k=kindOf(getType()),ex=S.p.some(x=>x.name.toLowerCase()==v.toLowerCase());
+    h.classList.toggle('new',!!v&&!ex);h.textContent=!v?'Scegli dall’elenco o scrivi un nome nuovo: viene aggiunto da solo.':ex?'':`Nuovo: verrà aggiunto all’elenco come «${k}».`};
+  i.addEventListener('input',hint);f.elements.type?.addEventListener('change',upd);upd()}
 async function placeId(name,type){name=(name||'').trim();if(!name)return null;const p=S.p.find(x=>x.name.toLowerCase()==name.toLowerCase());if(p)return p.id;return(await api('POST','places',{name,kind:kindOf(type)})).id}
 function applyAccent(c){if(!c)return;try{localStorage.setItem('accent',c)}catch(e){}
   const st=document.documentElement.style,H=(h,i)=>parseInt(h.substr(i,2),16),
