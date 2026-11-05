@@ -10,7 +10,8 @@ app.config["MAX_CONTENT_LENGTH"] = 30 * 1024 * 1024
 T = {
     "vehicles": ["name", "plate", "notes", "purchase_date", "sale_date"],
     "deadlines": ["vehicle_id", "type", "due_date", "repeat_months", "notes"],
-    "records": ["vehicle_id", "date", "type", "description", "cost", "km"],
+    "records": ["vehicle_id", "date", "type", "description", "cost", "km", "place_id"],
+    "places": ["name", "kind", "notes"],
 }
 
 def db():
@@ -26,6 +27,7 @@ with db() as c:
         for k in cols:  # migrazione da versioni precedenti
             if k not in have:
                 c.execute(f"alter table {t} add column {k}")
+    c.execute("create table if not exists settings(key text primary key, value text)")
     c.execute("create table if not exists attachments(id integer primary key autoincrement,kind,ref_id,name,stored)")
 
 def drop_files(c, where, args):
@@ -71,6 +73,17 @@ def afile(i):
     if not r: return "", 404
     return send_from_directory(FILES, r["stored"], download_name=r["name"])
 
+@app.get("/api/settings")
+def sget():
+    return jsonify({r[0]: r[1] for r in db().execute("select key,value from settings")})
+
+@app.put("/api/settings")
+def sput():
+    with db() as c:
+        for k, v in (request.json or {}).items():
+            c.execute("insert into settings(key,value) values(?,?) on conflict(key) do update set value=excluded.value", (str(k), str(v)))
+    return jsonify(ok=1)
+
 @app.get("/api/<t>")
 def lst(t):
     if t not in T: return "", 404
@@ -103,6 +116,8 @@ def rm(t, i):
                 drop_files(c, f"kind=? and ref_id in (select id from {k} where vehicle_id=?)", (k, i))
             c.execute("delete from deadlines where vehicle_id=?", (i,))
             c.execute("delete from records where vehicle_id=?", (i,))
+        elif t == "places":
+            c.execute("update records set place_id=null where place_id=?", (i,))
         else:
             drop_files(c, "kind=? and ref_id=?", (t, i))
         c.execute(f"delete from {t} where id=?", (i,))

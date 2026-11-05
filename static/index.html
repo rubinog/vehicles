@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vehicles.</title>
 <style>
-:root{--bg:#f1f2ee;--ink:#15171b;--mute:#6b7078;--line:#d9dbd5;--card:#fafaf8;--accent:#2f4bff;--on:#fff;--late:#c92a2a;--soon:#a8660b}
-@media(prefers-color-scheme:dark){:root{--bg:#121316;--ink:#ecedef;--mute:#8d929b;--line:#2a2d33;--card:#1a1c21;--accent:#7f90ff;--on:#10121a;--late:#ff6b6b;--soon:#f0b44c}}
+:root{--bg:#f1f2ee;--ink:#15171b;--mute:#6b7078;--line:#d9dbd5;--card:#fafaf8;--accent:var(--au,#2f4bff);--on:var(--onl,#fff);--late:#c92a2a;--soon:#a8660b}
+@media(prefers-color-scheme:dark){:root{--bg:#121316;--ink:#ecedef;--mute:#8d929b;--line:#2a2d33;--card:#1a1c21;--accent:var(--ad,#7f90ff);--on:var(--ond,#10121a);--late:#ff6b6b;--soon:#f0b44c}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
 main{max-width:860px;margin:0 auto;padding:28px 20px 80px}
@@ -36,6 +36,12 @@ button.g:hover{color:var(--ink)}
 .file{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:6px;margin:6px 6px 0 0;max-width:100%}
 .file a{color:var(--accent);text-decoration:none;padding:2px 8px;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
 .file button{padding:2px 8px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}h1{cursor:pointer}
+.sw{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 4px}
+.sw button{width:34px;height:34px;border-radius:50%;padding:0;border:2px solid transparent;box-shadow:0 0 0 1px var(--line)}
+.sw button.on{border-color:var(--bg);box-shadow:0 0 0 2px var(--ink)}
+.sw input{width:44px;height:34px;padding:0;margin:0;border:0;background:none}
+.sum{color:var(--mute);font-size:.9rem;margin:-2px 0 8px}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(420px,92vw);padding:22px}
 dialog::backdrop{background:rgba(0,0,0,.45)}
 dialog h3{margin:0 0 14px}
@@ -48,7 +54,7 @@ input,select{display:block;width:100%;margin-top:4px;padding:9px 10px;border:1px
 </head>
 <body>
 <main>
-<h1>Vehicles<span>.</span></h1>
+<header><h1 onclick="S.page='';render()">Vehicles<span>.</span></h1><button class="g" onclick="S.page=S.page==='set'?'':'set';render()">Impostazioni</button></header>
 <div id="app"></div>
 </main>
 <dialog id="dlg"></dialog>
@@ -65,16 +71,18 @@ const DT=['Assicurazione','Bollo','Revisione','Tagliando','Gomme','Altro'];
 const RT=['Meccanico','Carrozziere','Gommista','Revisione','Assicurazione','Bollo','Altro'];
 const REP={Assicurazione:12,Bollo:12,Revisione:24,Tagliando:12,Gomme:6,Altro:''};
 const REC={Tagliando:'Meccanico',Gomme:'Gommista',Altro:'Altro'};
-let S={v:[],d:[],r:[],a:[],cur:null};
+const PK=['Meccanico','Carrozziere','Gommista','Altro'];
+const SW=['#2f4bff','#0f9d8a','#e8590c','#c2255c','#7048e8','#2b8a3e','#f08c00'];
+let S={v:[],d:[],r:[],a:[],p:[],set:{},page:'',cur:null};
 
 async function load(){
-  [S.v,S.d,S.r,S.a]=await Promise.all(['vehicles','deadlines','records','attachments'].map(t=>api('GET',t)));
+  [S.v,S.d,S.r,S.a,S.p,S.set]=await Promise.all(['vehicles','deadlines','records','attachments','places','settings'].map(t=>api('GET',t)));applyAccent(S.set.accent);
   if(!S.v.find(x=>x.id==S.cur))S.cur=S.v[0]?.id;
   render();
 }
 function form(title,fields,vals,ok,after){
   const d=$('#dlg');
-  d.innerHTML=`<form method="dialog"><h3>${title}</h3>${fields.map(f=>`<label>${f.l}${f.o?`<select name="${f.n}">${f.o.map(o=>`<option ${vals[f.n]==o?'selected':''}>${o}</option>`).join('')}</select>`:`<input name="${f.n}" type="${f.t||'text'}" value="${esc(vals[f.n])}" ${f.r?'required':''} ${f.t=='number'?'step="any" min="0"':''} ${f.t=='file'?'multiple accept=".pdf,image/jpeg,image/png,image/webp"':''}>`}</label>`).join('')}<div class="act"><button value="x" class="g" formnovalidate>Annulla</button><button value="ok">Salva</button></div></form>`;
+  d.innerHTML=`<form method="dialog"><h3>${title}</h3>${fields.map(f=>`<label>${f.l}${f.o?`<select name="${f.n}">${f.o.map(o=>`<option ${vals[f.n]==o?'selected':''}>${o}</option>`).join('')}</select>`:`<input name="${f.n}" type="${f.t||'text'}" value="${esc(vals[f.n])}" ${f.r?'required':''} ${f.t=='number'?'step="any" min="0"':''} ${f.t=='file'?'multiple accept=".pdf,image/jpeg,image/png,image/webp"':''} ${f.dl?`list="dl_${f.n}" autocomplete="off"`:''}>${f.dl?`<datalist id="dl_${f.n}">${f.dl.map(o=>`<option value="${esc(o[0])}" label="${esc(o[1])}">`).join('')}</datalist>`:''}`}</label>`).join('')}<div class="act"><button value="x" class="g" formnovalidate>Annulla</button><button value="ok">Salva</button></div></form>`;
   const f=d.querySelector('form');
   f.onsubmit=e=>{if(e.submitter.value==='ok'){const fl=[...(f.elements.files?.files||[])].filter(x=>x.size),o=Object.fromEntries(new FormData(f));delete o.files;ok(o,fl)}};
   after&&after(f);
@@ -86,25 +94,45 @@ const dForm=(x={})=>form(x.id?'Modifica scadenza':'Nuova scadenza',[{n:'type',l:
   x.id?x:{repeat_months:12,due_date:today()},async (o,fl)=>{o.vehicle_id=S.cur;let id=x.id;
   if(id)await api('PUT','deadlines/'+id,o);else id=(await api('POST','deadlines',o)).id;await up('deadlines',id,fl);load()},
   f=>f.type.onchange=()=>f.repeat_months.value=REP[f.type.value]);
-const rForm=(x={})=>form(x.id?'Modifica intervento':'Nuovo intervento',[{n:'date',l:'Data',t:'date',r:1},{n:'type',l:'Tipo',o:RT},{n:'description',l:'Cosa è stato fatto'},{n:'cost',l:'Costo (€)',t:'number'},{n:'km',l:'Km',t:'number'},{n:'files',l:'Allega fattura (PDF o foto, facoltativo)',t:'file'}],
-  x.id?x:{date:today()},async (o,fl)=>{o.vehicle_id=S.cur;let id=x.id;
+const rForm=(x={})=>form(x.id?'Modifica intervento':'Nuovo intervento',[{n:'date',l:'Data',t:'date',r:1},{n:'type',l:'Tipo',o:RT},{n:'description',l:'Cosa è stato fatto'},{n:'place',l:'Dove sei stato (officina, carrozzeria…): scegli dall’elenco o scrivi un nome nuovo',dl:placeDL()},{n:'cost',l:'Costo (€)',t:'number'},{n:'km',l:'Km',t:'number'},{n:'files',l:'Allega fattura (PDF o foto, facoltativo)',t:'file'}],
+  x.id?{...x,place:pName(x.place_id)}:{date:today()},async (o,fl)=>{o.vehicle_id=S.cur;o.place_id=await placeId(o.place,o.type);delete o.place;let id=x.id;
   if(id)await api('PUT','records/'+id,o);else id=(await api('POST','records',o)).id;await up('records',id,fl);load()});
-const renew=x=>form('Rinnovo: '+x.type,[{n:'date',l:'Data pagamento / intervento',t:'date',r:1},{n:'cost',l:'Costo (€)',t:'number'},{n:'description',l:'Note'},{n:'files',l:'Allega fattura (PDF o foto, facoltativo)',t:'file'}],{date:today()},async (o,fl)=>{
-  const r=await api('POST','records',{vehicle_id:x.vehicle_id,type:REC[x.type]||x.type,description:o.description||x.type,cost:o.cost,date:o.date});await up('records',r.id,fl);
+const renew=x=>form('Rinnovo: '+x.type,[{n:'date',l:'Data pagamento / intervento',t:'date',r:1},{n:'cost',l:'Costo (€)',t:'number'},{n:'description',l:'Note'},{n:'place',l:'Dove (facoltativo)',dl:placeDL()},{n:'files',l:'Allega fattura (PDF o foto, facoltativo)',t:'file'}],{date:today()},async (o,fl)=>{
+  const r=await api('POST','records',{vehicle_id:x.vehicle_id,type:REC[x.type]||x.type,description:o.description||x.type,cost:o.cost,date:o.date,place_id:await placeId(o.place,REC[x.type]||x.type)});await up('records',r.id,fl);
   if(x.repeat_months)await api('PUT','deadlines/'+x.id,{due_date:addM(x.due_date,x.repeat_months)});else await api('DELETE','deadlines/'+x.id);
   load()});
+const eur=v=>(+v).toLocaleString('it-IT',{style:'currency',currency:'EUR'});
+const pName=id=>S.p.find(p=>p.id==id)?.name||'';
+const placeDL=()=>[...S.p].sort((a,b)=>a.name.localeCompare(b.name)).map(p=>[p.name,p.kind]);
+async function placeId(name,type){name=(name||'').trim();if(!name)return null;const p=S.p.find(x=>x.name.toLowerCase()==name.toLowerCase());if(p)return p.id;return(await api('POST','places',{name,kind:PK.includes(type)?type:'Altro'})).id}
+function applyAccent(c){if(!c)return;try{localStorage.setItem('accent',c)}catch(e){}
+  const st=document.documentElement.style,H=(h,i)=>parseInt(h.substr(i,2),16),
+  lum=h=>{const[a,b,d]=[1,3,5].map(i=>H(h,i)/255).map(v=>v<=.03928?v/12.92:((v+.055)/1.055)**2.4);return .2126*a+.7152*b+.0722*d},
+  d='#'+[1,3,5].map(i=>Math.round(H(c,i)*.65+255*.35).toString(16).padStart(2,'0')).join('');
+  st.setProperty('--au',c);st.setProperty('--ad',d);st.setProperty('--onl',lum(c)>.4?'#10121a':'#fff');st.setProperty('--ond',lum(d)>.4?'#10121a':'#fff')}
+try{applyAccent(localStorage.getItem('accent'))}catch(e){}
+const setAccent=async c=>{S.set.accent=c;applyAccent(c);await api('PUT','settings',{accent:c});render()};
+const pForm=(x={})=>form(x.id?'Modifica luogo':'Nuovo luogo',[{n:'name',l:'Nome',r:1},{n:'kind',l:'Tipo',o:PK},{n:'notes',l:'Città, telefono, note'}],x.id?x:{kind:'Meccanico'},async o=>{if(x.id)await api('PUT','places/'+x.id,o);else await api('POST','places',o);load()});
+function settings(A){const c=S.set.accent||SW[0],n=id=>S.r.filter(r=>r.place_id==id).length;
+  A.innerHTML=`<div class="sec"><h2>Colore d’accento</h2></div>
+  <div class="sw">${SW.map(x=>`<button style="background:${x}" class="${x==c?'on':''}" title="${x}" onclick="setAccent('${x}')"></button>`).join('')}<input type="color" value="${c}" title="Colore personalizzato" onchange="setAccent(this.value)"></div>
+  <div class="sec"><h2>Officine e carrozzerie</h2><button onclick="pForm()">Aggiungi</button></div>
+  <p class="m" style="margin:0 0 8px">Si aggiungono anche da sole quando le scrivi in un intervento, e poi le ritrovi nell’elenco.</p>
+  ${S.p.length?[...S.p].sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<div class="row rec"><div class="m">${esc(p.kind)}</div><div><div class="t">${esc(p.name)}</div><div class="m">${[n(p.id)+(n(p.id)==1?' intervento':' interventi'),p.notes].filter(Boolean).map(esc).join(' · ')}</div></div><div class="acts"><button class="g" onclick="pForm(find('p',${p.id}))">Modifica</button><button class="g" onclick="del('places',${p.id},'Eliminare? Gli interventi restano, ma senza il luogo.')">×</button></div></div>`).join(''):'<div class="empty">Nessun luogo salvato.</div>'}`}
 async function up(kind,ref,files){for(const f of files){const fd=new FormData();fd.append('kind',kind);fd.append('ref_id',ref);fd.append('file',f);const r=await fetch('/api/attachments',{method:'POST',body:fd});if(!r.ok)alert('Impossibile allegare '+f.name)}}
 const att=(k,id)=>S.a.filter(a=>a.kind==k&&a.ref_id==id).map(a=>`<span class="file"><a href="/files/${a.id}" target="_blank" rel="noopener" title="${esc(a.name)}">${esc(a.name)}</a><button class="g" title="Rimuovi allegato" onclick="del('attachments',${a.id},'Rimuovere l allegato?')">×</button></span>`).join('');
 const del=(t,i,msg)=>confirm(msg)&&api('DELETE',t+'/'+i).then(load);
 const find=(a,i)=>S[a].find(x=>x.id==i);
 
 function render(){
-  const A=$('#app');
+  const A=$('#app');if(S.page==='set')return settings(A);
   if(!S.v.length){A.innerHTML=`<div class="empty">Nessun veicolo. Aggiungi il primo per iniziare a tracciare scadenze e manutenzioni.</div><button onclick="vForm()">Aggiungi veicolo</button>`;return}
   const v=find('v',S.cur);
   const D=S.d.filter(x=>x.vehicle_id==S.cur).sort((a,b)=>a.due_date.localeCompare(b.due_date));
   const R=S.r.filter(x=>x.vehicle_id==S.cur).sort((a,b)=>b.date.localeCompare(a.date));
   const tot=R.reduce((s,x)=>s+(+x.cost||0),0);
+  const Y=new Date().getFullYear(),RY=R.filter(x=>x.date.startsWith(Y)),by={};RY.forEach(x=>by[x.type]=(by[x.type]||0)+(+x.cost||0));
+  const ysum=RY.length?`<p class="sum"><b>${Y}</b>: ${eur(RY.reduce((s,x)=>s+(+x.cost||0),0))} in ${RY.length} ${RY.length==1?'intervento':'interventi'}${' — '+Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>esc(k)+' '+eur(v)).join(' · ')}</p>`:'';
   A.innerHTML=`<div class="chips">${S.v.map(x=>`<button class="chip ${x.id==S.cur?'on':''} ${x.sale_date?'sold':''}" onclick="S.cur=${x.id};render()">${esc(x.name)}</button>`).join('')}<button class="g" onclick="vForm()">+ Veicolo</button></div>
   <div class="head"><h2 style="font-size:1.6rem">${esc(v.name)}</h2><div><button class="g" onclick="vForm(find('v',${v.id}))">Modifica</button><button class="g" onclick="del('vehicles',${v.id},'Eliminare il veicolo con scadenze e storico?')">Elimina</button></div></div>
   <p class="plate">${[v.plate,v.notes,v.purchase_date&&'Acquistato il '+it(v.purchase_date),v.sale_date&&'Venduto il '+it(v.sale_date)].filter(Boolean).map(esc).join(' · ')}</p>
@@ -113,9 +141,9 @@ function render(){
     return `<div class="row ${c}"><div class="n">${n<0?-n:n}<small>${n<0?'giorni di ritardo':n==0?'oggi':n==1?'giorno':'giorni'}</small></div>
     <div><div class="t">${esc(x.type)}</div><div class="m">${it(x.due_date)}${x.notes?' · '+esc(x.notes):''}</div>${att('deadlines',x.id)}</div>
     <div class="acts"><button onclick="renew(find('d',${x.id}))">Rinnova</button><button class="g" onclick="dForm(find('d',${x.id}))">Modifica</button><button class="g" onclick="del('deadlines',${x.id},'Eliminare la scadenza?')">×</button></div></div>`}).join(''):'<div class="empty">Nessuna scadenza. Aggiungi bollo, assicurazione, tagliando…</div>'}
-  <div class="sec"><h2>Storico${tot?` <span class="m" style="font-weight:400">· totale ${tot.toLocaleString('it-IT',{style:'currency',currency:'EUR'})}</span>`:''}</h2><button onclick="rForm()">Aggiungi intervento</button></div>
+  <div class="sec"><h2>Storico${tot?` <span class="m" style="font-weight:400">· totale ${eur(tot)}</span>`:''}</h2><button onclick="rForm()">Aggiungi intervento</button></div>${ysum}
   ${R.length?R.map(x=>`<div class="row rec"><div class="m">${it(x.date)}</div>
-    <div><div class="t">${esc(x.type)}${x.description?' · '+esc(x.description):''}</div><div class="m">${x.cost?(+x.cost).toLocaleString('it-IT',{style:'currency',currency:'EUR'}):''}${x.cost&&x.km?' · ':''}${x.km?(+x.km).toLocaleString('it-IT')+' km':''}</div>${att('records',x.id)}</div>
+    <div><div class="t">${esc(x.type)}${x.description?' · '+esc(x.description):''}</div><div class="m">${[pName(x.place_id),x.cost&&eur(x.cost),x.km&&(+x.km).toLocaleString('it-IT')+' km'].filter(Boolean).map(esc).join(' · ')}</div>${att('records',x.id)}</div>
     <div class="acts"><button class="g" onclick="rForm(find('r',${x.id}))">Modifica</button><button class="g" onclick="del('records',${x.id},'Eliminare l\\'intervento?')">×</button></div></div>`).join(''):'<div class="empty">Nessun intervento registrato.</div>'}`;
 }
 load();
