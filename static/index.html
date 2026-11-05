@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vehicles.</title>
+<style>
+:root{--bg:#f1f2ee;--ink:#15171b;--mute:#6b7078;--line:#d9dbd5;--card:#fafaf8;--accent:#2f4bff;--on:#fff;--late:#c92a2a;--soon:#a8660b}
+@media(prefers-color-scheme:dark){:root{--bg:#121316;--ink:#ecedef;--mute:#8d929b;--line:#2a2d33;--card:#1a1c21;--accent:#7f90ff;--on:#10121a;--late:#ff6b6b;--soon:#f0b44c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:860px;margin:0 auto;padding:28px 20px 80px}
+h1{font-size:clamp(2.4rem,7vw,3.6rem);font-weight:800;letter-spacing:-.045em;margin:0 0 22px;line-height:1}
+h1 span{color:var(--accent)}
+h2{font-size:1.1rem;margin:0}
+button,input,select{font:inherit;color:inherit}
+button{background:var(--accent);color:var(--on);border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
+button.g{background:none;color:var(--mute);padding:6px 8px;font-weight:500}
+button.g:hover{color:var(--ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px}
+.chip{background:none;color:var(--ink);border:1px solid var(--line);font-weight:500}
+.chip.on{background:var(--accent);color:var(--on);border-color:var(--accent)}
+.head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:6px}
+.plate{color:var(--mute);margin:0 0 28px}
+.sec{display:flex;justify-content:space-between;align-items:center;margin:30px 0 10px}
+.row{display:grid;grid-template-columns:92px 1fr auto;gap:14px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.row.rec{grid-template-columns:92px 1fr auto}
+.n{font-size:1.5rem;font-weight:800;letter-spacing:-.03em;line-height:1}
+.n small{display:block;font-size:.75rem;font-weight:500;color:var(--mute);letter-spacing:0;margin-top:4px}
+.late .n{color:var(--late)}.soon .n{color:var(--soon)}
+.t{font-weight:600}.m{color:var(--mute);font-size:.9rem}
+.acts{display:flex;gap:2px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.empty{color:var(--mute);padding:18px 0;border-top:1px solid var(--line)}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(420px,92vw);padding:22px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h3{margin:0 0 14px}
+label{display:block;font-size:.85rem;color:var(--mute);margin-bottom:12px}
+input,select{display:block;width:100%;margin-top:4px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.act{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+@media(max-width:560px){.row{grid-template-columns:70px 1fr}.acts{grid-column:1/-1;justify-content:flex-start}}
+@media(prefers-reduced-motion:no-preference){dialog[open]{animation:p .15s ease-out}@keyframes p{from{transform:scale(.97);opacity:0}}}
+</style>
+</head>
+<body>
+<main>
+<h1>Vehicles<span>.</span></h1>
+<div id="app"></div>
+</main>
+<dialog id="dlg"></dialog>
+<script>
+const $=s=>document.querySelector(s),p=n=>String(n).padStart(2,'0');
+const api=(m,u,b)=>fetch('/api/'+u,{method:m,headers:{'Content-Type':'application/json'},body:b&&JSON.stringify(b)}).then(r=>r.json());
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=x=>`${x.getFullYear()}-${p(x.getMonth()+1)}-${p(x.getDate())}`;
+const today=()=>fmt(new Date());
+const it=d=>new Date(d+'T00:00').toLocaleDateString('it-IT',{day:'numeric',month:'short',year:'numeric'});
+const days=d=>Math.round((new Date(d+'T00:00')-new Date().setHours(0,0,0,0))/864e5);
+function addM(d,m){const x=new Date(d+'T00:00'),g=x.getDate();x.setMonth(x.getMonth()+ +m);if(x.getDate()<g)x.setDate(0);return fmt(x)}
+const DT=['Assicurazione','Bollo','Revisione','Tagliando','Gomme','Altro'];
+const RT=['Meccanico','Carrozziere','Gommista','Revisione','Assicurazione','Bollo','Altro'];
+const REP={Assicurazione:12,Bollo:12,Revisione:24,Tagliando:12,Gomme:6,Altro:''};
+const REC={Tagliando:'Meccanico',Gomme:'Gommista',Altro:'Altro'};
+let S={v:[],d:[],r:[],cur:null};
+
+async function load(){
+  [S.v,S.d,S.r]=await Promise.all(['vehicles','deadlines','records'].map(t=>api('GET',t)));
+  if(!S.v.find(x=>x.id==S.cur))S.cur=S.v[0]?.id;
+  render();
+}
+function form(title,fields,vals,ok,after){
+  const d=$('#dlg');
+  d.innerHTML=`<form method="dialog"><h3>${title}</h3>${fields.map(f=>`<label>${f.l}${f.o?`<select name="${f.n}">${f.o.map(o=>`<option ${vals[f.n]==o?'selected':''}>${o}</option>`).join('')}</select>`:`<input name="${f.n}" type="${f.t||'text'}" value="${esc(vals[f.n])}" ${f.r?'required':''} ${f.t=='number'?'step="any" min="0"':''}>`}</label>`).join('')}<div class="act"><button value="x" class="g" formnovalidate>Annulla</button><button value="ok">Salva</button></div></form>`;
+  const f=d.querySelector('form');
+  f.onsubmit=e=>{if(e.submitter.value==='ok')ok(Object.fromEntries(new FormData(f)))};
+  after&&after(f);
+  d.showModal();
+}
+const vForm=(v={})=>form(v.id?'Modifica veicolo':'Nuovo veicolo',[{n:'name',l:'Nome (es. Panda)',r:1},{n:'plate',l:'Targa'},{n:'notes',l:'Note'}],v,async o=>{
+  if(v.id)await api('PUT','vehicles/'+v.id,o);else S.cur=(await api('POST','vehicles',o)).id;load()});
+const dForm=(x={})=>form(x.id?'Modifica scadenza':'Nuova scadenza',[{n:'type',l:'Tipo',o:DT},{n:'due_date',l:'Scade il',t:'date',r:1},{n:'repeat_months',l:'Si ripete ogni (mesi, vuoto = una tantum)',t:'number'},{n:'notes',l:'Note'}],
+  x.id?x:{repeat_months:12,due_date:today()},async o=>{o.vehicle_id=S.cur;
+  if(x.id)await api('PUT','deadlines/'+x.id,o);else await api('POST','deadlines',o);load()},
+  f=>f.type.onchange=()=>f.repeat_months.value=REP[f.type.value]);
+const rForm=(x={})=>form(x.id?'Modifica intervento':'Nuovo intervento',[{n:'date',l:'Data',t:'date',r:1},{n:'type',l:'Tipo',o:RT},{n:'description',l:'Cosa è stato fatto'},{n:'cost',l:'Costo (€)',t:'number'},{n:'km',l:'Km',t:'number'}],
+  x.id?x:{date:today()},async o=>{o.vehicle_id=S.cur;
+  if(x.id)await api('PUT','records/'+x.id,o);else await api('POST','records',o);load()});
+const renew=x=>form('Rinnovo: '+x.type,[{n:'date',l:'Data pagamento / intervento',t:'date',r:1},{n:'cost',l:'Costo (€)',t:'number'},{n:'description',l:'Note'}],{date:today()},async o=>{
+  await api('POST','records',{vehicle_id:x.vehicle_id,type:REC[x.type]||x.type,description:o.description||x.type,cost:o.cost,date:o.date});
+  if(x.repeat_months)await api('PUT','deadlines/'+x.id,{due_date:addM(x.due_date,x.repeat_months)});else await api('DELETE','deadlines/'+x.id);
+  load()});
+const del=(t,i,msg)=>confirm(msg)&&api('DELETE',t+'/'+i).then(load);
+const find=(a,i)=>S[a].find(x=>x.id==i);
+
+function render(){
+  const A=$('#app');
+  if(!S.v.length){A.innerHTML=`<div class="empty">Nessun veicolo. Aggiungi il primo per iniziare a tracciare scadenze e manutenzioni.</div><button onclick="vForm()">Aggiungi veicolo</button>`;return}
+  const v=find('v',S.cur);
+  const D=S.d.filter(x=>x.vehicle_id==S.cur).sort((a,b)=>a.due_date.localeCompare(b.due_date));
+  const R=S.r.filter(x=>x.vehicle_id==S.cur).sort((a,b)=>b.date.localeCompare(a.date));
+  const tot=R.reduce((s,x)=>s+(+x.cost||0),0);
+  A.innerHTML=`<div class="chips">${S.v.map(x=>`<button class="chip ${x.id==S.cur?'on':''}" onclick="S.cur=${x.id};render()">${esc(x.name)}</button>`).join('')}<button class="g" onclick="vForm()">+ Veicolo</button></div>
+  <div class="head"><h2 style="font-size:1.6rem">${esc(v.name)}</h2><div><button class="g" onclick="vForm(find('v',${v.id}))">Modifica</button><button class="g" onclick="del('vehicles',${v.id},'Eliminare il veicolo con scadenze e storico?')">Elimina</button></div></div>
+  <p class="plate">${esc(v.plate)}${v.plate&&v.notes?' · ':''}${esc(v.notes)}</p>
+  <div class="sec"><h2>Scadenze</h2><button onclick="dForm()">Aggiungi scadenza</button></div>
+  ${D.length?D.map(x=>{const n=days(x.due_date),c=n<0?'late':n<=30?'soon':'';
+    return `<div class="row ${c}"><div class="n">${n<0?-n:n}<small>${n<0?'giorni di ritardo':n==0?'oggi':n==1?'giorno':'giorni'}</small></div>
+    <div><div class="t">${esc(x.type)}</div><div class="m">${it(x.due_date)}${x.notes?' · '+esc(x.notes):''}</div></div>
+    <div class="acts"><button onclick="renew(find('d',${x.id}))">Rinnova</button><button class="g" onclick="dForm(find('d',${x.id}))">Modifica</button><button class="g" onclick="del('deadlines',${x.id},'Eliminare la scadenza?')">×</button></div></div>`}).join(''):'<div class="empty">Nessuna scadenza. Aggiungi bollo, assicurazione, tagliando…</div>'}
+  <div class="sec"><h2>Storico${tot?` <span class="m" style="font-weight:400">· totale ${tot.toLocaleString('it-IT',{style:'currency',currency:'EUR'})}</span>`:''}</h2><button onclick="rForm()">Aggiungi intervento</button></div>
+  ${R.length?R.map(x=>`<div class="row rec"><div class="m">${it(x.date)}</div>
+    <div><div class="t">${esc(x.type)}${x.description?' · '+esc(x.description):''}</div><div class="m">${x.cost?(+x.cost).toLocaleString('it-IT',{style:'currency',currency:'EUR'}):''}${x.cost&&x.km?' · ':''}${x.km?(+x.km).toLocaleString('it-IT')+' km':''}</div></div>
+    <div class="acts"><button class="g" onclick="rForm(find('r',${x.id}))">Modifica</button><button class="g" onclick="del('records',${x.id},'Eliminare l\\'intervento?')">×</button></div></div>`).join(''):'<div class="empty">Nessun intervento registrato.</div>'}`;
+}
+load();
+</script>
+</body>
+</html>
