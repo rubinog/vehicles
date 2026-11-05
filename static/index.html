@@ -5,51 +5,87 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vehicles.</title>
 <style>
-:root{--bg:#f1f2ee;--ink:#15171b;--mute:#6b7078;--line:#d9dbd5;--card:#fafaf8;--accent:var(--au,#2f4bff);--on:var(--onl,#fff);--late:#c92a2a;--soon:#a8660b}
-@media(prefers-color-scheme:dark){:root{--bg:#121316;--ink:#ecedef;--mute:#8d929b;--line:#2a2d33;--card:#1a1c21;--accent:var(--ad,#7f90ff);--on:var(--ond,#10121a);--late:#ff6b6b;--soon:#f0b44c}}
+:root{--bg:#ebe8e4;--ink:#1d1b1a;--mute:#8a847d;--line:#eee9e4;--card:#fff;--accent:var(--au,#ec6a3c);--on:var(--onl,#fff);--late:#d6332f;--soon:#b9700c;--sh:0 8px 28px rgba(60,40,20,.08)}
+@media(prefers-color-scheme:dark){:root{--bg:#141312;--ink:#f1eeea;--mute:#9a948c;--line:#2b2825;--card:#1f1d1b;--accent:var(--ad,#ff9370);--on:var(--ond,#1a1210);--late:#ff7b7b;--soon:#f0b44c;--sh:none}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:860px;margin:0 auto;padding:28px 20px 80px}
-h1{font-size:clamp(2.4rem,7vw,3.6rem);font-weight:800;letter-spacing:-.045em;margin:0 0 22px;line-height:1}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:760px;margin:0 auto;padding:max(20px,env(safe-area-inset-top)) 18px 120px}
+header{margin:6px 2px 18px}
+h1{font-size:2.3rem;font-weight:800;letter-spacing:-.045em;margin:0;line-height:1;cursor:pointer}
 h1 span{color:var(--accent)}
-h2{font-size:1.1rem;margin:0}
+h2{font-size:1.05rem;margin:0}
 button,input,select{font:inherit;color:inherit}
-button{background:var(--accent);color:var(--on);border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
-button.g{background:none;color:var(--mute);padding:6px 8px;font-weight:500}
+button{background:var(--accent);color:var(--on);border:0;border-radius:999px;padding:9px 16px;font-weight:600;cursor:pointer}
+button.g{background:none;color:var(--mute);padding:6px 10px;font-weight:500}
 button.g:hover{color:var(--ink)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px}
-.chip{background:none;color:var(--ink);border:1px solid var(--line);font-weight:500}
-.chip.on{background:var(--accent);color:var(--on);border-color:var(--accent)}
-.head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:6px}
-.plate{color:var(--mute);margin:0 0 28px}
-.sec{display:flex;justify-content:space-between;align-items:center;margin:30px 0 10px}
-.row{display:grid;grid-template-columns:92px 1fr auto;gap:14px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
-.row.rec{grid-template-columns:92px 1fr auto}
+.card{background:var(--card);border-radius:24px;padding:20px;margin-bottom:14px;box-shadow:var(--sh)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 14px;scrollbar-width:none}
+.chips button{white-space:nowrap}
+.chip{background:var(--card);color:var(--ink);box-shadow:var(--sh)}
+.chip.on{background:var(--accent);color:var(--on)}
+.chip.sold:not(.on){opacity:.6}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.vname{font-size:1.7rem;letter-spacing:-.02em;margin:0 0 8px;line-height:1.15}
+.vname.sold{text-decoration:line-through;text-decoration-color:var(--accent);text-decoration-thickness:3px}
+.plate{margin:0;color:var(--mute);font-size:.9rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tg{border:1.5px solid var(--ink);color:var(--ink);border-radius:6px;padding:1px 8px;font-weight:700;letter-spacing:.08em;font-size:.85rem}
+.sale{color:var(--accent)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.stat{background:color-mix(in srgb,var(--accent) 10%,var(--card));border-radius:16px;padding:12px 14px}
+.stat small{display:block;color:var(--mute);font-size:.78rem}
+.stat b{font-size:1.25rem;letter-spacing:-.02em}
+.next{display:grid;grid-template-columns:1fr auto;gap:8px 14px;align-items:center;border-radius:24px;padding:20px;margin-bottom:14px;color:var(--on);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 78%,#fff),var(--accent))}
+.next small{opacity:.85}
+.next .nl{display:grid}
+.next .nl b{font-size:1.35rem;letter-spacing:-.02em}
+.next .nd{text-align:right}
+.next .nd b{font-size:3.2rem;line-height:1;font-weight:800;letter-spacing:-.04em;display:block}
+.next button{grid-column:1/-1;background:rgba(255,255,255,.25);color:inherit;justify-self:start}
+.next.late{background:linear-gradient(135deg,#ef5350,#c62828);color:#fff}
+.sec{display:flex;justify-content:space-between;align-items:center;margin:22px 2px 12px}
+.card .sec{margin:0 0 12px}
+.bars{display:flex;gap:6px;height:130px;margin-bottom:20px}
+.bc{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+.bw{flex:1;width:100%;display:flex;align-items:flex-end}
+.bar{width:100%;border-radius:8px;min-height:3px;background:color-mix(in srgb,var(--accent) 22%,var(--card))}
+.bar.cur{background:repeating-linear-gradient(135deg,var(--accent) 0 5px,color-mix(in srgb,var(--accent) 70%,#fff) 5px 9px)}
+.bc small{font-size:.7rem;color:var(--mute)}
+.don{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+.donut{width:140px;height:140px;border-radius:50%;position:relative;display:grid;place-items:center;flex:none}
+.donut::after{content:"";position:absolute;inset:22px;border-radius:50%;background:var(--card)}
+.donut b{position:relative;z-index:1;letter-spacing:-.02em}
+.leg{list-style:none;margin:0;padding:0;flex:1;min-width:150px;display:grid;gap:8px}
+.leg li{display:flex;align-items:center;gap:8px;font-size:.92rem}
+.leg i{width:10px;height:10px;border-radius:50%;flex:none}
+.leg span{margin-left:auto;color:var(--mute);white-space:nowrap}
+.head>div:last-child{display:flex;flex:none}
+.row{display:grid;grid-template-columns:84px 1fr auto;gap:14px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0;padding-top:0}
+.row:last-child{padding-bottom:0}
 .n{font-size:1.5rem;font-weight:800;letter-spacing:-.03em;line-height:1}
 .n small{display:block;font-size:.75rem;font-weight:500;color:var(--mute);letter-spacing:0;margin-top:4px}
 .late .n{color:var(--late)}.soon .n{color:var(--soon)}
 .t{font-weight:600}.m{color:var(--mute);font-size:.9rem}
+.sum{color:var(--mute);font-size:.9rem;margin:0 0 6px}
 .acts{display:flex;gap:2px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-.empty{color:var(--mute);padding:18px 0;border-top:1px solid var(--line)}
-.chip.sold:not(.on){opacity:.6}
-.file{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:6px;margin:6px 6px 0 0;max-width:100%}
-.file a{color:var(--accent);text-decoration:none;padding:2px 8px;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.empty{color:var(--mute);padding:10px 0}
+.file{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;margin:6px 6px 0 0;max-width:100%}
+.file a{color:var(--accent);text-decoration:none;padding:2px 10px;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
 .file button{padding:2px 8px}
-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}h1{cursor:pointer}
 .sw{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 4px}
-.sw button{width:34px;height:34px;border-radius:50%;padding:0;border:2px solid transparent;box-shadow:0 0 0 1px var(--line)}
-.sw button.on{border-color:var(--bg);box-shadow:0 0 0 2px var(--ink)}
-.sw input{width:44px;height:34px;padding:0;margin:0;border:0;background:none}
-.sum{color:var(--mute);font-size:.9rem;margin:-2px 0 8px}
-.vname{font-size:1.6rem}
-.vname.sold{text-decoration:line-through;text-decoration-color:var(--accent);text-decoration-thickness:3px}
-.sale{color:var(--accent)}
-dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(420px,92vw);padding:22px}
+.sw button{width:36px;height:36px;border-radius:50%;padding:0;border:2px solid transparent;box-shadow:0 0 0 1px var(--line)}
+.sw button.on{border-color:var(--card);box-shadow:0 0 0 2px var(--ink)}
+.sw input{width:44px;height:36px;padding:0;margin:0;border:0;background:none}
+nav{position:fixed;left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom));display:flex;gap:2px;background:var(--card);border-radius:28px;padding:6px;box-shadow:0 10px 36px rgba(40,25,10,.2);z-index:5;max-width:calc(100vw - 24px)}
+nav button{background:none;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 14px;border-radius:22px;font-size:.72rem}
+nav button.on{color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+nav svg{width:22px;height:22px}
+dialog{border:0;border-radius:24px;background:var(--card);color:var(--ink);width:min(420px,92vw);padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
 dialog::backdrop{background:rgba(0,0,0,.45)}
 dialog h3{margin:0 0 14px}
 label{display:block;font-size:.85rem;color:var(--mute);margin-bottom:12px}
-input,select{display:block;width:100%;margin-top:4px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+input,select{display:block;width:100%;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
 .act{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
 @media(max-width:560px){.row{grid-template-columns:70px 1fr}.acts{grid-column:1/-1;justify-content:flex-start}}
 @media(prefers-reduced-motion:no-preference){dialog[open]{animation:p .15s ease-out}@keyframes p{from{transform:scale(.97);opacity:0}}}
@@ -57,9 +93,10 @@ input,select{display:block;width:100%;margin-top:4px;padding:9px 10px;border:1px
 </head>
 <body>
 <main>
-<header><h1 onclick="S.page='';render()">Vehicles<span>.</span></h1><button class="g" onclick="S.page=S.page==='set'?'':'set';render()">Impostazioni</button></header>
+<header><h1 onclick="go('home')">Vehicles<span>.</span></h1></header>
 <div id="app"></div>
 </main>
+<nav id="nav"></nav>
 <dialog id="dlg"></dialog>
 <script>
 const $=s=>document.querySelector(s),p=n=>String(n).padStart(2,'0');
@@ -76,7 +113,7 @@ const REP={Assicurazione:12,Bollo:12,Revisione:24,Tagliando:12,Gomme:6,Altro:''}
 const REC={Tagliando:'Meccanico',Gomme:'Gommista',Altro:'Altro'};
 const PK=['Meccanico','Carrozziere','Gommista','Assicurazione','Altro'];
 const kindOf=t=>PK.includes(t)?t:REC[t]||'Altro';
-const SW=['#2f4bff','#0f9d8a','#e8590c','#c2255c','#7048e8','#2b8a3e','#f08c00'];
+const SW=['#ec6a3c','#2f4bff','#0f9d8a','#c2255c','#7048e8','#2b8a3e','#f08c00'];
 let S={v:[],d:[],r:[],a:[],p:[],set:{},page:'',cur:null};
 
 async function load(){
@@ -118,39 +155,54 @@ function applyAccent(c){if(!c)return;try{localStorage.setItem('accent',c)}catch(
 try{applyAccent(localStorage.getItem('accent'))}catch(e){}
 const setAccent=async c=>{S.set.accent=c;applyAccent(c);await api('PUT','settings',{accent:c});render()};
 const pForm=(x={})=>form(x.id?'Modifica luogo':'Nuovo luogo',[{n:'name',l:'Nome',r:1},{n:'kind',l:'Tipo',o:PK},{n:'notes',l:'Città, telefono, note'}],x.id?x:{kind:'Meccanico'},async o=>{if(x.id)await api('PUT','places/'+x.id,o);else await api('POST','places',o);load()});
-function settings(A){const c=S.set.accent||SW[0],n=id=>S.r.filter(r=>r.place_id==id).length+S.d.filter(r=>r.place_id==id).length;
-  A.innerHTML=`<div class="sec"><h2>Colore d’accento</h2></div>
-  <div class="sw">${SW.map(x=>`<button style="background:${x}" class="${x==c?'on':''}" title="${x}" onclick="setAccent('${x}')"></button>`).join('')}<input type="color" value="${c}" title="Colore personalizzato" onchange="setAccent(this.value)"></div>
-  <div class="sec"><h2>Officine e compagnie</h2><button onclick="pForm()">Aggiungi</button></div>
-  <p class="m" style="margin:0 0 8px">Si aggiungono anche da sole quando le scrivi in un intervento, e poi le ritrovi nell’elenco.</p>
-  ${S.p.length?[...S.p].sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<div class="row rec"><div class="m">${esc(p.kind)}</div><div><div class="t">${esc(p.name)}</div><div class="m">${[n(p.id)+(n(p.id)==1?' voce':' voci'),p.notes].filter(Boolean).map(esc).join(' · ')}</div></div><div class="acts"><button class="g" onclick="pForm(find('p',${p.id}))">Modifica</button><button class="g" onclick="del('places',${p.id},'Eliminare? Gli interventi restano, ma senza il luogo.')">×</button></div></div>`).join(''):'<div class="empty">Nessun luogo salvato.</div>'}`}
 async function up(kind,ref,files){for(const f of files){const fd=new FormData();fd.append('kind',kind);fd.append('ref_id',ref);fd.append('file',f);const r=await fetch('/api/attachments',{method:'POST',body:fd});if(!r.ok)alert('Impossibile allegare '+f.name)}}
 const att=(k,id)=>S.a.filter(a=>a.kind==k&&a.ref_id==id).map(a=>`<span class="file"><a href="/files/${a.id}" target="_blank" rel="noopener" title="${esc(a.name)}">${esc(a.name)}</a><button class="g" title="Rimuovi allegato" onclick="del('attachments',${a.id},'Rimuovere l allegato?')">×</button></span>`).join('');
 const del=(t,i,msg)=>confirm(msg)&&api('DELETE',t+'/'+i).then(load);
 const find=(a,i)=>S[a].find(x=>x.id==i);
 
+const MONTHS='GFMAMGLASOND',eur0=v=>Math.round(v).toLocaleString('it-IT')+' €';
+const go=p=>{S.page=p;render();scrollTo(0,0)};
+const IC={home:'<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',dead:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',hist:'<path d="M4 6h16M4 12h16M4 18h10"/>',set:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'};
+function nav(){$('#nav').innerHTML=[['home','Panoramica'],['dead','Scadenze'],['hist','Storico'],['set','Impostazioni']].map(([k,l])=>`<button class="${(S.page||'home')==k?'on':''}" onclick="go('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${IC[k]}</svg><span>${l}</span></button>`).join('')}
+function settings(A){const c=S.set.accent||SW[0],n=id=>S.r.filter(r=>r.place_id==id).length+S.d.filter(r=>r.place_id==id).length;
+  A.innerHTML=`<div class="card"><div class="sec"><h2>Colore d’accento</h2></div>
+  <div class="sw">${SW.map(x=>`<button style="background:${x}" class="${x==c?'on':''}" title="${x}" onclick="setAccent('${x}')"></button>`).join('')}<input type="color" value="${c}" title="Colore personalizzato" onchange="setAccent(this.value)"></div></div>
+  <div class="card"><div class="sec"><h2>Officine e compagnie</h2><button onclick="pForm()">Aggiungi</button></div>
+  <p class="m" style="margin:0 0 12px">Si aggiungono anche da sole quando le scrivi in un intervento o in una scadenza.</p>
+  ${S.p.length?[...S.p].sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<div class="row rec"><div class="m">${esc(p.kind)}</div><div><div class="t">${esc(p.name)}</div><div class="m">${[n(p.id)+(n(p.id)==1?' voce':' voci'),p.notes].filter(Boolean).map(esc).join(' · ')}</div></div><div class="acts"><button class="g" onclick="pForm(find('p',${p.id}))">Modifica</button><button class="g" onclick="del('places',${p.id},'Eliminare? Gli interventi restano, ma senza il luogo.')">×</button></div></div>`).join(''):'<div class="empty">Nessun luogo salvato.</div>'}</div>`}
+const dRow=x=>{const n=days(x.due_date),c=n<0?'late':n<=30?'soon':'';return `<div class="row ${c}"><div class="n">${Math.abs(n)}<small>${n<0?'giorni di ritardo':n==0?'oggi':n==1?'giorno':'giorni'}</small></div><div><div class="t">${esc(x.type)}</div><div class="m">${[it(x.due_date),pName(x.place_id),x.notes].filter(Boolean).map(esc).join(' · ')}</div>${att('deadlines',x.id)}</div><div class="acts"><button onclick="renew(find('d',${x.id}))">Rinnova</button><button class="g" onclick="dForm(find('d',${x.id}))">Modifica</button><button class="g" onclick="del('deadlines',${x.id},'Eliminare la scadenza?')">×</button></div></div>`};
+const rRow=x=>`<div class="row"><div class="m">${it(x.date)}</div><div><div class="t">${esc(x.type)}${x.description?' · '+esc(x.description):''}</div><div class="m">${[pName(x.place_id),x.cost&&eur(x.cost),x.km&&(+x.km).toLocaleString('it-IT')+' km'].filter(Boolean).map(esc).join(' · ')}</div>${att('records',x.id)}</div><div class="acts"><button class="g" onclick="rForm(find('r',${x.id}))">Modifica</button><button class="g" onclick="del('records',${x.id},'Eliminare questo intervento?')">×</button></div></div>`;
 function render(){
-  const A=$('#app');if(S.page==='set')return settings(A);
-  if(!S.v.length){A.innerHTML=`<div class="empty">Nessun veicolo. Aggiungi il primo per iniziare a tracciare scadenze e manutenzioni.</div><button onclick="vForm()">Aggiungi veicolo</button>`;return}
-  const v=find('v',S.cur);
+  nav();const A=$('#app'),pg=S.page||'home';
+  if(pg==='set')return settings(A);
+  if(!S.v.length){A.innerHTML=`<div class="card"><h2>Nessun veicolo</h2><p class="m">Aggiungi il primo per tenere sotto controllo bollo, assicurazione e manutenzioni.</p><button onclick="vForm()">Aggiungi veicolo</button></div>`;return}
+  const v=find('v',S.cur),sum=a=>a.reduce((s,x)=>s+(+x.cost||0),0);
   const D=S.d.filter(x=>x.vehicle_id==S.cur).sort((a,b)=>a.due_date.localeCompare(b.due_date));
   const R=S.r.filter(x=>x.vehicle_id==S.cur).sort((a,b)=>b.date.localeCompare(a.date));
-  const tot=R.reduce((s,x)=>s+(+x.cost||0),0);
-  const Y=new Date().getFullYear(),RY=R.filter(x=>x.date.startsWith(Y)),by={};RY.forEach(x=>by[x.type]=(by[x.type]||0)+(+x.cost||0));
-  const ysum=RY.length?`<p class="sum"><b>${Y}</b>: ${eur(RY.reduce((s,x)=>s+(+x.cost||0),0))} in ${RY.length} ${RY.length==1?'intervento':'interventi'}${' — '+Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>esc(k)+' '+eur(v)).join(' · ')}</p>`:'';
-  A.innerHTML=`<div class="chips">${S.v.map(x=>`<button class="chip ${x.id==S.cur?'on':''} ${x.sale_date?'sold':''}" onclick="S.cur=${x.id};render()">${esc(x.name)}</button>`).join('')}<button class="g" onclick="vForm()">+ Veicolo</button></div>
-  <div class="head"><h2 class="vname ${v.sale_date?'sold':''}">${esc(v.name)}</h2><div><button class="g" onclick="vForm(find('v',${v.id}))">Modifica</button><button class="g" onclick="del('vehicles',${v.id},'Eliminare il veicolo con scadenze e storico?')">Elimina</button></div></div>
-  <p class="plate">${[v.plate,v.notes,v.purchase_date&&'Acquistato il '+it(v.purchase_date)].filter(Boolean).map(esc).concat(v.sale_date?[`<b class="sale">Venduto il ${it(v.sale_date)}</b>`]:[]).join(' · ')}</p>
-  <div class="sec"><h2>Scadenze</h2><button onclick="dForm()">Aggiungi scadenza</button></div>
-  ${D.length?D.map(x=>{const n=days(x.due_date),c=n<0?'late':n<=30?'soon':'';
-    return `<div class="row ${c}"><div class="n">${n<0?-n:n}<small>${n<0?'giorni di ritardo':n==0?'oggi':n==1?'giorno':'giorni'}</small></div>
-    <div><div class="t">${esc(x.type)}</div><div class="m">${[it(x.due_date),pName(x.place_id),x.notes].filter(Boolean).map(esc).join(' · ')}</div>${att('deadlines',x.id)}</div>
-    <div class="acts"><button onclick="renew(find('d',${x.id}))">Rinnova</button><button class="g" onclick="dForm(find('d',${x.id}))">Modifica</button><button class="g" onclick="del('deadlines',${x.id},'Eliminare la scadenza?')">×</button></div></div>`}).join(''):'<div class="empty">Nessuna scadenza. Aggiungi bollo, assicurazione, tagliando…</div>'}
-  <div class="sec"><h2>Storico${tot?` <span class="m" style="font-weight:400">· totale ${eur(tot)}</span>`:''}</h2><button onclick="rForm()">Aggiungi intervento</button></div>${ysum}
-  ${R.length?R.map(x=>`<div class="row rec"><div class="m">${it(x.date)}</div>
-    <div><div class="t">${esc(x.type)}${x.description?' · '+esc(x.description):''}</div><div class="m">${[pName(x.place_id),x.cost&&eur(x.cost),x.km&&(+x.km).toLocaleString('it-IT')+' km'].filter(Boolean).map(esc).join(' · ')}</div>${att('records',x.id)}</div>
-    <div class="acts"><button class="g" onclick="rForm(find('r',${x.id}))">Modifica</button><button class="g" onclick="del('records',${x.id},'Eliminare l\\'intervento?')">×</button></div></div>`).join(''):'<div class="empty">Nessun intervento registrato.</div>'}`;
+  const Y=new Date().getFullYear(),RY=R.filter(x=>x.date.startsWith(Y)),tot=sum(R),yt=sum(RY);
+  const chips=`<div class="chips">${S.v.map(x=>`<button class="chip ${x.id==S.cur?'on':''} ${x.sale_date?'sold':''}" onclick="S.cur=${x.id};render()">${esc(x.name)}</button>`).join('')}<button class="g" onclick="vForm()">+ Veicolo</button></div>`;
+  let body;
+  if(pg==='dead')body=`<div class="sec"><h2>Scadenze</h2><button onclick="dForm()">Aggiungi scadenza</button></div><div class="card">${D.length?D.map(dRow).join(''):'<div class="empty">Nessuna scadenza. Aggiungi bollo, assicurazione, tagliando…</div>'}</div>`;
+  else if(pg==='hist')body=`<div class="sec"><h2>Storico</h2><button onclick="rForm()">Aggiungi intervento</button></div><div class="card">${tot?`<p class="sum">Totale <b>${eur(tot)}</b>${RY.length?` · ${Y}: <b>${eur(yt)}</b> in ${RY.length} ${RY.length==1?'intervento':'interventi'}`:''}</p>`:''}${R.length?R.map(rRow).join(''):'<div class="empty">Nessun intervento registrato.</div>'}</div>`;
+  else{
+    const meta=[v.notes,v.purchase_date&&'Acquistato il '+it(v.purchase_date)].filter(Boolean).map(esc).concat(v.sale_date?[`<b class="sale">Venduto il ${it(v.sale_date)}</b>`]:[]).join(' · ');
+    const nx=D[0],nn=nx&&days(nx.due_date);
+    const mon=Array(12).fill(0);RY.forEach(x=>mon[+x.date.slice(5,7)-1]+=+x.cost||0);
+    const mx=Math.max(...mon,1),cm=new Date().getMonth(),by={};RY.forEach(x=>by[x.type]=(by[x.type]||0)+(+x.cost||0));
+    let cats=Object.entries(by).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]);
+    if(cats.length>5)cats=[...cats.slice(0,4),['Altro',cats.slice(4).reduce((s,e)=>s+e[1],0)]];
+    const CC=['var(--accent)','color-mix(in srgb,var(--accent) 68%,#fff)','color-mix(in srgb,var(--accent) 42%,#fff)','color-mix(in srgb,var(--accent) 24%,#fff)','var(--mute)'];
+    let ac=0;const stops=cats.map(([k,q],i)=>{const a=ac/yt*100;ac+=q;return `${CC[i]} ${a}% ${ac/yt*100}%`}).join(',');
+    body=`<div class="card"><div class="head"><div><h2 class="vname ${v.sale_date?'sold':''}">${esc(v.name)}</h2><p class="plate">${v.plate?`<span class="tg">${esc(v.plate)}</span>`:''}${meta?`<span>${meta}</span>`:''}</p></div><div><button class="g" onclick="vForm(find('v',${v.id}))">Modifica</button><button class="g" onclick="del('vehicles',${v.id},'Eliminare il veicolo con scadenze e storico?')">Elimina</button></div></div>
+    <div class="stats"><div class="stat"><small>Spesi nel ${Y}</small><b>${eur0(yt)}</b></div><div class="stat"><small>Totale storico · ${R.length} ${R.length==1?'voce':'voci'}</small><b>${eur0(tot)}</b></div></div></div>
+    ${nx?`<div class="next ${nn<0?'late':''}"><div class="nl"><small>Prossima scadenza</small><b>${esc(nx.type)}</b><small>${[it(nx.due_date),pName(nx.place_id)].filter(Boolean).map(esc).join(' · ')}</small></div><div class="nd"><b>${Math.abs(nn)}</b><small>${nn<0?'giorni di ritardo':nn==0?'oggi':nn==1?'giorno':'giorni'}</small></div><button onclick="renew(find('d',${nx.id}))">Rinnova</button></div>`:`<div class="card"><h2>Nessuna scadenza</h2><p class="m">Aggiungi bollo, assicurazione o tagliando per ricevere il conto alla rovescia.</p><button onclick="dForm()">Aggiungi scadenza</button></div>`}
+    ${D.length>1?`<div class="card"><div class="sec"><h2>Poi</h2><button class="g" onclick="go('dead')">Vedi tutte</button></div>${D.slice(1,4).map(dRow).join('')}</div>`:''}
+    <div class="card"><div class="sec"><h2>Spese ${Y}</h2><span class="m">${eur(yt)}</span></div>${yt?`<div class="bars">${mon.map((q,i)=>`<div class="bc" title="${eur(q)}"><div class="bw"><div class="bar ${i==cm?'cur':''}" style="height:${q?Math.max(q/mx*100,6):2}%"></div></div><small>${MONTHS[i]}</small></div>`).join('')}</div>
+    <div class="don"><div class="donut" style="background:conic-gradient(${stops})"><b>${eur0(yt)}</b></div><ul class="leg">${cats.map(([k,q],i)=>`<li><i style="background:${CC[i]}"></i>${esc(k)}<span>${Math.round(q/yt*100)}% · ${eur0(q)}</span></li>`).join('')}</ul></div>`:`<div class="empty">Nessuna spesa registrata nel ${Y}.</div>`}</div>`;
+  }
+  A.innerHTML=chips+body;
 }
+
 load();
 </script>
 </body>
