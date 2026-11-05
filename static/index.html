@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vehicles.</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#ec6a3c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root{--bg:#ebe8e4;--ink:#1d1b1a;--mute:#8a847d;--line:#eee9e4;--card:#fff;--accent:var(--au,#ec6a3c);--on:var(--onl,#fff);--late:#d6332f;--soon:#b9700c;--sh:0 8px 28px rgba(60,40,20,.08)}
 @media(prefers-color-scheme:dark){:root{--bg:#141312;--ink:#f1eeea;--mute:#9a948c;--line:#2b2825;--card:#1f1d1b;--accent:var(--ad,#ff9370);--on:var(--ond,#1a1210);--late:#ff7b7b;--soon:#f0b44c;--sh:none}}
@@ -42,7 +46,12 @@ button.g:hover{color:var(--ink)}
 .next .nd{text-align:right}
 .next .nd b{font-size:3.2rem;line-height:1;font-weight:800;letter-spacing:-.04em;display:block}
 .next button{grid-column:1/-1;background:rgba(255,255,255,.25);color:inherit;justify-self:start}
-.next.late{background:linear-gradient(135deg,#ef5350,#c62828);color:#fff}
+.next.overdue{background:linear-gradient(135deg,#f87171,#ef4444);color:#fff}
+.next.overdue button{background:rgba(255,255,255,.28);color:inherit}
+.next.overdue button:hover{background:rgba(255,255,255,.38)}
+@media(prefers-color-scheme:dark){
+  .next.overdue{background:linear-gradient(135deg,#b91c1c,#991b1b);color:#fef2f2}
+}
 .sec{display:flex;justify-content:space-between;align-items:center;margin:22px 2px 12px}
 .card .sec{margin:0 0 12px}
 .bars{display:flex;gap:6px;height:130px;margin-bottom:20px}
@@ -94,6 +103,7 @@ dialog h3{margin:0 0 14px}
 label{display:block;font-size:.85rem;color:var(--mute);margin-bottom:12px}
 input,select{display:block;width:100%;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
 .act{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.backup-box{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
 @media(max-width:560px){.row{grid-template-columns:70px 1fr}.acts{grid-column:1/-1;justify-content:flex-start}}
 @media(prefers-reduced-motion:no-preference){dialog[open]{animation:p .15s ease-out}@keyframes p{from{transform:scale(.97);opacity:0}}}
 </style>
@@ -108,6 +118,7 @@ input,select{display:block;width:100%;margin-top:4px;padding:10px 12px;border:1p
 <dialog id="cfm"></dialog>
 <div id="toast" class="toast" hidden></div>
 <script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
 const $=s=>document.querySelector(s),p=n=>String(n).padStart(2,'0');
 const api=(m,u,b)=>fetch('/api/'+u,{method:m,headers:{'Content-Type':'application/json'},body:b&&JSON.stringify(b)}).then(r=>r.json());
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -177,6 +188,20 @@ function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeou
 const del=async(t,i,msg)=>{if(await ask(msg)){await api('DELETE',t+'/'+i);await load();toast('Eliminato')}};
 const find=(a,i)=>S[a].find(x=>x.id==i);
 
+async function restoreZip(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(!await ask('Ripristinare il backup? I dati correnti verranno sovrascritti.', 'Ripristina')) { input.value = ''; return; }
+  const fd = new FormData();
+  fd.append('backup', file);
+  toast('Ripristino in corso...');
+  const res = await fetch('/api/restore', {method: 'POST', body: fd});
+  const data = await res.json();
+  if(data.ok){ toast('Backup ripristinato'); await load(); }
+  else { toast('Errore: ' + (data.error || 'Impossibile ripristinare')); }
+  input.value = '';
+}
+
 const MONTHS='GFMAMGLASOND',eur0=v=>Math.round(v).toLocaleString('it-IT')+' €';
 const go=p=>{S.page=p;render();scrollTo(0,0)};
 const IC={home:'<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',dead:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',hist:'<path d="M4 6h16M4 12h16M4 18h10"/>',set:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'};
@@ -184,6 +209,12 @@ function nav(){$('#nav').innerHTML=[['home','Panoramica'],['dead','Scadenze'],['
 function settings(A){const c=S.set.accent||SW[0],n=id=>S.r.filter(r=>r.place_id==id).length+S.d.filter(r=>r.place_id==id).length;
   A.innerHTML=`<div class="card"><div class="sec"><h2>Colore d’accento</h2></div>
   <div class="sw">${SW.map(x=>`<button style="background:${x}" class="${x==c?'on':''}" title="${x}" onclick="setAccent('${x}')"></button>`).join('')}<input type="color" value="${c}" title="Colore personalizzato" onchange="setAccent(this.value)"></div></div>
+  <div class="card"><div class="sec"><h2>Dati e Backup</h2></div>
+  <p class="m" style="margin:0 0 10px">Scarica una copia completa del database e di tutti gli allegati, o ripristina un archivio precedente.</p>
+  <div class="backup-box">
+    <a href="/api/backup" download style="text-decoration:none"><button type="button">Scarica Backup (.zip)</button></a>
+    <label style="margin:0;cursor:pointer"><span class="chip" style="padding:9px 16px;border-radius:999px;font-weight:600;display:inline-block">Carica Backup</span><input type="file" accept=".zip" style="display:none" onchange="restoreZip(this)"></label>
+  </div></div>
   <div class="card"><div class="sec"><h2>Officine e compagnie</h2><button onclick="pForm()">Aggiungi</button></div>
   <p class="m" style="margin:0 0 12px">Si aggiungono anche da sole quando le scrivi in un intervento o in una scadenza.</p>
   ${S.p.length?[...S.p].sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<div class="row rec"><div class="m">${esc(p.kind)}</div><div><div class="t">${esc(p.name)}</div><div class="m">${[n(p.id)+(n(p.id)==1?' voce':' voci'),p.notes].filter(Boolean).map(esc).join(' · ')}</div></div><div class="acts"><button class="g" onclick="pForm(find('p',${p.id}))">Modifica</button><button class="g" onclick="del('places',${p.id},'Eliminare? Gli interventi restano, ma senza il luogo.')">×</button></div></div>`).join(''):'<div class="empty">Nessun luogo salvato.</div>'}</div>`}
@@ -203,17 +234,48 @@ function render(){
   else if(pg==='hist')body=`<div class="sec"><h2>Storico</h2><button onclick="rForm()">Aggiungi intervento</button></div><div class="card">${tot?`<p class="sum">Totale <b>${eur(tot)}</b>${RY.length?` · ${Y}: <b>${eur(yt)}</b> in ${RY.length} ${RY.length==1?'intervento':'interventi'}`:''}</p>`:''}${R.length?R.map(rRow).join(''):'<div class="empty">Nessun intervento registrato.</div>'}</div>`;
   else{
     const meta=[v.notes,v.purchase_date&&'Acquistato il '+it(v.purchase_date)].filter(Boolean).map(esc).concat(v.sale_date?[`<b class="sale">Venduto il ${it(v.sale_date)}</b>`]:[]).join(' · ');
-    const nx=D[0],nn=nx&&days(nx.due_date);
+    
+    // Suddivisione tra scadenze scadute e future/odierne
+    const overdue = D.filter(x => days(x.due_date) < 0);
+    const upcoming = D.filter(x => days(x.due_date) >= 0);
+    const nx = upcoming[0] || null;
+    const nn = nx ? days(nx.due_date) : null;
+    const later = nx ? upcoming.slice(1, 4) : [];
+
+    // Prima scadenza in ritardo
+    const ox = overdue[0] || null;
+    const on_days = ox ? Math.abs(days(ox.due_date)) : 0;
+    const extraOverdue = overdue.slice(1);
+
     const mon=Array(12).fill(0);RY.forEach(x=>mon[+x.date.slice(5,7)-1]+=+x.cost||0);
     const mx=Math.max(...mon,1),cm=new Date().getMonth(),by={};RY.forEach(x=>by[x.type]=(by[x.type]||0)+(+x.cost||0));
     let cats=Object.entries(by).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]);
     if(cats.length>5)cats=[...cats.slice(0,4),['Altro',cats.slice(4).reduce((s,e)=>s+e[1],0)]];
     const CC=['var(--accent)','color-mix(in srgb,var(--accent) 68%,#fff)','color-mix(in srgb,var(--accent) 42%,#fff)','color-mix(in srgb,var(--accent) 24%,#fff)','var(--mute)'];
     let ac=0;const stops=cats.map(([k,q],i)=>{const a=ac/yt*100;ac+=q;return `${CC[i]} ${a}% ${ac/yt*100}%`}).join(',');
+    
     body=`<div class="card"><div class="head"><div><h2 class="vname ${v.sale_date?'sold':''}">${esc(v.name)}</h2><p class="plate">${v.plate?`<span class="tg">${esc(v.plate)}</span>`:''}${meta?`<span>${meta}</span>`:''}</p></div><div><button class="g" onclick="vForm(find('v',${v.id}))">Modifica</button><button class="g" onclick="del('vehicles',${v.id},'Eliminare il veicolo con scadenze e storico?')">Elimina</button></div></div>
     <div class="stats"><div class="stat"><small>Spesi nel ${Y}</small><b>${eur0(yt)}</b></div><div class="stat"><small>Totale storico · ${R.length} ${R.length==1?'voce':'voci'}</small><b>${eur0(tot)}</b></div></div></div>
-    ${nx?`<div class="next ${nn<0?'late':''}"><div class="nl"><small>Prossima scadenza</small><b>${esc(nx.type)}</b><small>${[it(nx.due_date),pName(nx.place_id)].filter(Boolean).map(esc).join(' · ')}</small></div><div class="nd"><b>${Math.abs(nn)}</b><small>${nn<0?'giorni di ritardo':nn==0?'oggi':nn==1?'giorno':'giorni'}</small></div><button onclick="renew(find('d',${nx.id}))">Rinnova</button></div>`:`<div class="card"><h2>Nessuna scadenza</h2><p class="m">Aggiungi bollo, assicurazione o tagliando per ricevere il conto alla rovescia.</p><button onclick="dForm()">Aggiungi scadenza</button></div>`}
-    ${D.length>1?`<div class="card"><div class="sec"><h2>Poi</h2><button class="g" onclick="go('dead')">Vedi tutte</button></div>${D.slice(1,4).map(dRow).join('')}</div>`:''}
+    
+    ${ox ? `<div class="next overdue">
+      <div class="nl">
+        <small>Scadenza in ritardo${overdue.length > 1 ? ` (1 di ${overdue.length})` : ''}</small>
+        <b>${esc(ox.type)}</b>
+        <small>${[it(ox.due_date), pName(ox.place_id), ox.notes].filter(Boolean).map(esc).join(' · ')}</small>
+      </div>
+      <div class="nd">
+        <b>${on_days}</b>
+        <small>${on_days === 1 ? 'giorno di ritardo' : 'giorni di ritardo'}</small>
+      </div>
+      <button onclick="renew(find('d',${ox.id}))">Rinnova</button>
+    </div>` : ''}
+
+    ${extraOverdue.length ? `<div class="card"><div class="sec"><h2>Altre in ritardo</h2><button class="g" onclick="go('dead')">Vedi tutte</button></div>${extraOverdue.map(dRow).join('')}</div>` : ''}
+    
+    ${nx ? `<div class="next"><div class="nl"><small>Prossima scadenza</small><b>${esc(nx.type)}</b><small>${[it(nx.due_date),pName(nx.place_id)].filter(Boolean).map(esc).join(' · ')}</small></div><div class="nd"><b>${nn}</b><small>${nn==0?'oggi':nn==1?'giorno':'giorni'}</small></div><button onclick="renew(find('d',${nx.id}))">Rinnova</button></div>` : (!overdue.length ? `<div class="card"><h2>Nessuna scadenza</h2><p class="m">Aggiungi bollo, assicurazione o tagliando per ricevere il conto alla rovescia.</p><button onclick="dForm()">Aggiungi scadenza</button></div>` : '')}
+    
+    ${later.length ? `<div class="card"><div class="sec"><h2>Poi</h2><button class="g" onclick="go('dead')">Vedi tutte</button></div>${later.map(dRow).join('')}</div>` : ''}
+    
     <div class="card"><div class="sec"><h2>Spese ${Y}</h2><span class="m">${eur(yt)}</span></div>${yt?`<div class="bars">${mon.map((q,i)=>`<div class="bc" title="${eur(q)}"><div class="bw"><div class="bar ${i==cm?'cur':''}" style="height:${q?Math.max(q/mx*100,6):2}%"></div></div><small>${MONTHS[i]}</small></div>`).join('')}</div>
     <div class="don"><div class="donut" style="background:conic-gradient(${stops})"><b>${eur0(yt)}</b></div><ul class="leg">${cats.map(([k,q],i)=>`<li><i style="background:${CC[i]}"></i>${esc(k)}<span>${Math.round(q/yt*100)}% · ${eur0(q)}</span></li>`).join('')}</ul></div>`:`<div class="empty">Nessuna spesa registrata nel ${Y}.</div>`}</div>`;
   }

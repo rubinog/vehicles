@@ -1,12 +1,13 @@
-import os, sqlite3, uuid
-from flask import Flask, jsonify, request, send_from_directory
+import os, sqlite3, uuid, io, zipfile, shutil
+from datetime import datetime
+from flask import Flask, jsonify, request, send_from_directory, send_file
 from werkzeug.utils import secure_filename
 
 DB = os.environ.get("DB_PATH", "/data/vehicles.db")
 FILES = os.path.join(os.path.dirname(DB), "files")
 ALLOWED = {"pdf", "jpg", "jpeg", "png", "webp"}
 app = Flask(__name__, static_folder="static")
-app.config["MAX_CONTENT_LENGTH"] = 30 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB per consentire backup completi
 T = {
     "vehicles": ["name", "plate", "notes", "purchase_date", "sale_date"],
     "deadlines": ["vehicle_id", "type", "due_date", "repeat_months", "notes", "place_id"],
@@ -17,6 +18,7 @@ T = {
 def db():
     c = sqlite3.connect(DB)
     c.row_factory = sqlite3.Row
+    c.execute("PRAGMA journal_mode = WAL")
     return c
 
 os.makedirs(os.path.dirname(DB), exist_ok=True)
@@ -24,7 +26,7 @@ with db() as c:
     for t, cols in T.items():
         c.execute(f"create table if not exists {t}(id integer primary key autoincrement,{','.join(cols)})")
         have = {r[1] for r in c.execute(f"pragma table_info({t})")}
-        for k in cols:  # migrazione da versioni precedenti
+        for k in cols:
             if k not in have:
                 c.execute(f"alter table {t} add column {k}")
     c.execute("create table if not exists settings(key text primary key, value text)")
@@ -39,6 +41,53 @@ def drop_files(c, where, args):
 @app.get("/")
 def index():
     return send_from_directory("static", "index.html")
+
+@app.get("/manifest.json")
+def manifest():
+    return send_from_directory("static", "manifest.json", mimetype="application/manifest+json")
+
+@app.get("/sw.js")
+def service_worker():
+    return send_from_directory("static", "sw.js", mimetype="application/javascript")
+
+# --- Backup & Restore ---
+@app.get("/api/backup")
+def get_backup():
+    # Vacuum del DB per assicurare che il file su disco sia pulito prima della compressione
+    with db() as c:
+        c.execute("PRAGMA wal_checkpoint(FULL)")
+    
+    mem_file = io.BytesIO()
+    with zipfile.ZipFile(mem_file, "w", zipfile.ZIP_DEFLATED) as zf:
+        if os.path.exists(DB):
+            zf.write(DB, arcname="vehicles.db")
+        if os.path.exists(FILES):
+            for root, _, files in os.walk(FILES):
+                for file in files:
+                    full_p = os.path.join(root, file)
+                    rel_p = os.path.relpath(full_p, os.path.dirname(DB))
+                    zf.write(full_p, arcname=rel_p)
+    mem_file.seek(0)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return send_file(mem_file, download_name=f"vehicles_backup_{ts}.zip", as_attachment=True, mimetype="application/zip")
+
+@app.post("/api/restore")
+def restore_backup():
+    f = request.files.get("backup")
+    if not f or not f.filename.endswith(".zip"):
+        return jsonify(error="Seleziona un archivio .zip valido"), 400
+    try:
+        data_dir = os.path.dirname(DB)
+        with zipfile.ZipFile(f.stream, "r") as zf:
+            # Verifica preliminare che contenga il DB
+            if "vehicles.db" not in zf.namelist():
+                return jsonify(error="Backup non valido: vehicles.db mancante"), 400
+            
+            # Estrazione e sovrascrittura di DB e cartella files/
+            zf.extractall(data_dir)
+        return jsonify(ok=1)
+    except Exception as e:
+        return jsonify(error=str(e)), 500
 
 @app.get("/api/attachments")
 def alist():
